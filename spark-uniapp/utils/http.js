@@ -116,11 +116,11 @@ const http = {
   },
   
   // 工作台相关
-  createSession: () => request({ url: '/workspace/create-session', method: 'POST' }),
-  sendMessage: (data) => request({ url: '/workspace/send-message', method: 'POST', data }),
-  getSession: (sessionId) => request({ url: `/workspace/session/${sessionId}`, method: 'GET' }),
-  uploadMaterial: (data) => request({ url: '/workspace/upload-material', method: 'POST', data }),
-  regenerate: (data) => request({ url: '/workspace/regenerate', method: 'POST', data }),
+  createSession: () => request({ url: '/api/v1/workspace/create-session', method: 'POST' }),
+  sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data }),
+  getSession: (sessionId) => request({ url: `/api/v1/workspace/session/${sessionId}`, method: 'GET' }),
+  uploadMaterial: (data) => request({ url: '/api/v1/workspace/upload-material', method: 'POST', data }),
+  regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data }),
   
   // 历史记录相关
   getConversations: (params) => request({ url: '/history/conversations', method: 'GET', data: params }),

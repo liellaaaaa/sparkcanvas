@@ -1,0 +1,56 @@
+### 前提：已完成用户注册与登录，拿到登录返回的 token 字段
+### 可以在此文件顶部手动设置变量：
+@baseUrl = http://localhost:8000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOjEsInN1YiI6IjEiLCJleHAiOjE3NjYxMDE4NzN9.d8WCpzukbspo8XdhP5n3S-mgsrd_LyU_qJIvMFYanUc
+
+###
+# 健康检查
+GET {{baseUrl}}/health
+
+###
+# 创建工作台会话
+POST {{baseUrl}}/api/v1/workspace/create-session
+Authorization: Bearer {{token}}
+
+###
+# 发送消息（将下面的 session_id 替换为上一步返回的值）
+POST {{baseUrl}}/api/v1/workspace/send-message
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "session_id": "REPLACE_WITH_SESSION_ID",
+  "message": "帮我写一篇关于自媒体爆款的笔记内容，占位测试。",
+  "material_source": "online",
+  "platform": "xiaohongshu"
+}
+
+###
+# 查询会话信息
+GET {{baseUrl}}/api/v1/workspace/session/REPLACE_WITH_SESSION_ID
+Authorization: Bearer {{token}}
+
+###
+# 上传素材（占位实现）
+POST {{baseUrl}}/api/v1/workspace/upload-material
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data
+
+session_id=REPLACE_WITH_SESSION_ID
+file=@./README.md
+
+###
+# 重新生成（将 session_id 替换为真实值）
+POST {{baseUrl}}/api/v1/workspace/regenerate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "session_id": "REPLACE_WITH_SESSION_ID",
+  "adjustments": {
+    "emotion_intensity": "high",
+    "style_preference": "大V同款"
+  }
+}
+
+
