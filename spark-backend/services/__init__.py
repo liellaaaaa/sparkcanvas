@@ -1,5 +1,6 @@
 """
-Services module - 业务服务层
-封装所有业务逻辑
+业务服务模块
 """
+from .auth_service import AuthService
 
+__all__ = ['AuthService']
