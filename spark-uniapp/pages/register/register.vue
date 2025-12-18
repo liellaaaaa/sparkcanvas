@@ -49,7 +49,18 @@
         <input
           v-model="formData.password"
           class="input"
-          placeholder="请输入密码（8-32位）"
+          placeholder="请输入密码（6-20位）"
+          placeholder-class="placeholder"
+          type="password"
+        />
+      </view>
+      
+      <view class="input-group">
+        <text class="label">确认密码</text>
+        <input
+          v-model="formData.confirmPassword"
+          class="input"
+          placeholder="请再次输入密码"
           placeholder-class="placeholder"
           type="password"
         />
@@ -67,52 +78,127 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
+import http from '@/utils/http.js'
+import storage from '@/utils/storage.js'
 
 const formData = reactive({
   username: '',
   email: '',
   verifyCode: '',
-  password: ''
+  password: '',
+  confirmPassword: ''
 })
 
 const loading = ref(false)
 const codeCountdown = ref(0)
+let countdownTimer = null
 
+// 邮箱格式验证
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+// 发送验证码
 const sendCode = async () => {
   if (!formData.email.trim()) {
     uni.showToast({ title: '请先输入邮箱', icon: 'none' })
     return
   }
   
-  // TODO: 调用发送验证码API
-  // await http.sendCode({ email: formData.email })
+  if (!validateEmail(formData.email)) {
+    uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+    return
+  }
   
-  uni.showToast({ title: '验证码已发送', icon: 'success' })
-  codeCountdown.value = 60
-  const timer = setInterval(() => {
-    codeCountdown.value--
-    if (codeCountdown.value <= 0) {
-      clearInterval(timer)
+  // 如果正在倒计时，不允许重复发送
+  if (codeCountdown.value > 0) {
+    return
+  }
+  
+  try {
+    uni.showLoading({ title: '发送中...' })
+    
+    // 调用发送验证码API
+    await http.sendCode(formData.email.trim())
+    
+    uni.showToast({ title: '验证码已发送，请查收邮箱', icon: 'success', duration: 2000 })
+    
+    // 开始倒计时
+    codeCountdown.value = 60
+    if (countdownTimer) {
+      clearInterval(countdownTimer)
     }
-  }, 1000)
+    countdownTimer = setInterval(() => {
+      codeCountdown.value--
+      if (codeCountdown.value <= 0) {
+        clearInterval(countdownTimer)
+        countdownTimer = null
+      }
+    }, 1000)
+  } catch (e) {
+    console.error('发送验证码失败:', e)
+    uni.showToast({
+      title: e.message || '验证码发送失败，请稍后重试',
+      icon: 'none',
+      duration: 2000
+    })
+  } finally {
+    uni.hideLoading()
+  }
 }
 
+// 用户注册
 const handleRegister = async () => {
+  // 表单验证
   if (!formData.username.trim()) {
     uni.showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
+  
+  if (formData.username.trim().length < 3 || formData.username.trim().length > 20) {
+    uni.showToast({ title: '用户名长度为3-20个字符', icon: 'none' })
+    return
+  }
+  
   if (!formData.email.trim()) {
     uni.showToast({ title: '请输入邮箱', icon: 'none' })
     return
   }
+  
+  if (!validateEmail(formData.email)) {
+    uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+    return
+  }
+  
   if (!formData.verifyCode.trim()) {
     uni.showToast({ title: '请输入验证码', icon: 'none' })
     return
   }
-  if (!formData.password.trim() || formData.password.length < 8) {
-    uni.showToast({ title: '密码长度至少8位', icon: 'none' })
+  
+  if (formData.verifyCode.trim().length !== 4) {
+    uni.showToast({ title: '验证码为4位数字', icon: 'none' })
+    return
+  }
+  
+  if (!formData.password.trim()) {
+    uni.showToast({ title: '请输入密码', icon: 'none' })
+    return
+  }
+  
+  if (formData.password.length < 6 || formData.password.length > 20) {
+    uni.showToast({ title: '密码长度为6-20个字符', icon: 'none' })
+    return
+  }
+  
+  if (!formData.confirmPassword.trim()) {
+    uni.showToast({ title: '请确认密码', icon: 'none' })
+    return
+  }
+  
+  if (formData.password !== formData.confirmPassword) {
+    uni.showToast({ title: '两次输入的密码不一致', icon: 'none' })
     return
   }
   
@@ -120,21 +206,53 @@ const handleRegister = async () => {
   uni.showLoading({ title: '注册中...' })
   
   try {
-    // TODO: 调用注册API
-    // const result = await http.register(formData)
-    // uni.setStorageSync('access_token', result.access_token)
-    // uni.setStorageSync('user_info', result.user)
+    // 调用注册API
+    await http.register({
+      username: formData.username.trim(),
+      email: formData.email.trim(),
+      password: formData.password,
+      confirm_password: formData.confirmPassword,
+      code: formData.verifyCode.trim()
+    })
     
     uni.showToast({ title: '注册成功', icon: 'success' })
-    setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/workspace/workspace'
-      })
+    
+    // 注册成功后，自动登录
+    setTimeout(async () => {
+      try {
+        const loginResult = await http.login({
+          email: formData.email.trim(),
+          password: formData.password
+        })
+        
+        // 存储Token和用户信息
+        storage.setToken(loginResult.token)
+        storage.setUserInfo(loginResult.user)
+        
+        // 跳转到工作台
+        uni.switchTab({
+          url: '/pages/workspace/workspace'
+        })
+      } catch (e) {
+        // 自动登录失败，跳转到登录页
+        console.error('自动登录失败:', e)
+        uni.showToast({
+          title: '注册成功，请登录',
+          icon: 'success'
+        })
+        setTimeout(() => {
+          uni.navigateTo({
+            url: '/pages/login/login'
+          })
+        }, 1500)
+      }
     }, 1500)
   } catch (e) {
+    console.error('注册失败:', e)
     uni.showToast({
-      title: e.message || '注册失败',
-      icon: 'none'
+      title: e.message || '注册失败，请检查信息后重试',
+      icon: 'none',
+      duration: 2000
     })
   } finally {
     loading.value = false
@@ -147,6 +265,14 @@ const goToLogin = () => {
     url: '/pages/login/login'
   })
 }
+
+// 组件卸载时清除定时器
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+})
 </script>
 
 <style scoped>
