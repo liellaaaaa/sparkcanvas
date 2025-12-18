@@ -1,0 +1,8 @@
+# SparkCanvas 开发环境配置文件
+app:
+  host: "127.0.0.1"
+  port: 8000
+
+mysql:
+  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+
