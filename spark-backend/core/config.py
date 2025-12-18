@@ -40,6 +40,10 @@ class AppConfig:
     tavily_api_key: str = ""
     # Chroma 配置
     chroma_persist_directory: str = "./chroma_db"
+    # 阿里云 DashScope 配置
+    dashscope_api_key: str = ""
+    dashscope_model: str = "qwen-max"
+    dashscope_temperature: float = 0.7
 
 
 def _merge_dict(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,6 +114,9 @@ def load_config(env: str | None = None) -> AppConfig:
         dalle_base_url=os.getenv("DALLE_BASE_URL", data.get("dalle", {}).get("base_url", "")),
         tavily_api_key=os.getenv("TAVILY_API_KEY", data.get("tavily", {}).get("api_key", "")),
         chroma_persist_directory=os.getenv("CHROMA_PERSIST_DIRECTORY", data.get("chroma", {}).get("persist_directory", "./chroma_db")),
+        dashscope_api_key=os.getenv("DASHSCOPE_API_KEY", data.get("dashscope", {}).get("api_key", "")),
+        dashscope_model=os.getenv("DASHSCOPE_MODEL", data.get("dashscope", {}).get("model", "qwen-max")),
+        dashscope_temperature=float(os.getenv("DASHSCOPE_TEMPERATURE", data.get("dashscope", {}).get("temperature", 0.7))),
     )
     return cfg
 
