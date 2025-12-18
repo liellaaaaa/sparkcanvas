@@ -1,0 +1,42 @@
+# SparkCanvas 基础配置文件
+app:
+  host: "0.0.0.0"
+  port: 8000
+
+mysql:
+  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+
+redis:
+  url: "redis://localhost:6379/0"
+
+jwt:
+  secret_key: "sparkcanvas-secret-key-2024"
+  access_token_expires_hours: 24
+  refresh_token_expires_days: 30
+
+mail:
+  username: "487935272@qq.com"
+  password: "uixvdbysupnmbjha"
+  from: "487935272@qq.com"
+  port: 587
+  server: "smtp.qq.com"
+  from_name: "SparkCanvas"
+  starttls: true
+  ssl_tls: false
+
+openai:
+  api_key: ""
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4"
+  embedding_model: "text-embedding-ada-002"
+
+dalle:
+  api_key: ""
+  base_url: "https://api.openai.com/v1"
+
+tavily:
+  api_key: ""
+
+chroma:
+  persist_directory: "./chroma_db"
+
