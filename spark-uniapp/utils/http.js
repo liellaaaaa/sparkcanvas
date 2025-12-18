@@ -2,27 +2,28 @@
  * HTTP请求封装
  * 统一处理API请求、错误处理、Token管理等
  */
+import config from './config.js'
 
-const BASE_URL = 'http://localhost:8000/api/v1' // TODO: 从配置文件读取
+const BASE_URL = config.BASE_URL
 
 // 请求拦截器
-const requestInterceptor = (config) => {
+const requestInterceptor = (options) => {
   // 添加Token
-  const token = uni.getStorageSync('access_token')
+  const token = uni.getStorageSync(config.TOKEN_KEY)
   if (token) {
-    config.header = {
-      ...config.header,
+    options.header = {
+      ...options.header,
       'Authorization': `Bearer ${token}`
     }
   }
   
   // 设置默认请求头
-  config.header = {
+  options.header = {
     'Content-Type': 'application/json',
-    ...config.header
+    ...options.header
   }
   
-  return config
+  return options
 }
 
 // 响应拦截器
@@ -31,28 +32,29 @@ const responseInterceptor = (response) => {
   
   // HTTP状态码处理
   if (statusCode === 200) {
-    // 业务状态码处理
-    if (data.code === 200) {
-      return Promise.resolve(data.data)
-    } else if (data.code === 401) {
-      // Token过期，跳转登录
-      uni.removeStorageSync('access_token')
-      uni.removeStorageSync('user_info')
-      uni.reLaunch({
-        url: '/pages/login/login'
-      })
-      return Promise.reject(new Error(data.message || '登录已过期'))
-    } else {
-      return Promise.reject(new Error(data.message || '请求失败'))
-    }
+    // 后端直接返回数据，没有包装在 code/data 中
+    // 成功响应直接返回数据
+    return Promise.resolve(data)
+  } else if (statusCode === 400) {
+    // 400 错误，通常是业务错误
+    const errorMsg = data?.detail || data?.message || '请求参数错误'
+    return Promise.reject(new Error(errorMsg))
   } else if (statusCode === 401) {
-    uni.removeStorageSync('access_token')
+    // 未授权，清除Token并跳转登录
+    uni.removeStorageSync(config.TOKEN_KEY)
+    uni.removeStorageSync(config.USER_INFO_KEY)
     uni.reLaunch({
       url: '/pages/login/login'
     })
-    return Promise.reject(new Error('未授权'))
+    return Promise.reject(new Error('登录已过期，请重新登录'))
+  } else if (statusCode === 403) {
+    // 禁止访问
+    return Promise.reject(new Error(data?.detail || '无权限访问'))
+  } else if (statusCode === 500) {
+    // 服务器错误
+    return Promise.reject(new Error(data?.detail || '服务器错误'))
   } else {
-    return Promise.reject(new Error(`请求失败: ${statusCode}`))
+    return Promise.reject(new Error(data?.detail || `请求失败: ${statusCode}`))
   }
 }
 
@@ -60,22 +62,24 @@ const responseInterceptor = (response) => {
 const request = (options) => {
   return new Promise((resolve, reject) => {
     // 请求拦截
-    const config = requestInterceptor({
+    const requestConfig = requestInterceptor({
       url: BASE_URL + options.url,
       method: options.method || 'GET',
       data: options.data,
-      header: options.header || {}
+      header: options.header || {},
+      timeout: config.TIMEOUT
     })
     
     uni.request({
-      ...config,
+      ...requestConfig,
       success: (res) => {
         responseInterceptor(res)
           .then(resolve)
           .catch(reject)
       },
       fail: (err) => {
-        reject(new Error(err.errMsg || '网络请求失败'))
+        console.error('请求失败:', err)
+        reject(new Error(err.errMsg || '网络请求失败，请检查网络连接'))
       }
     })
   })
@@ -84,10 +88,32 @@ const request = (options) => {
 // API方法封装
 const http = {
   // 认证相关
-  sendCode: (data) => request({ url: '/auth/send-code', method: 'POST', data }),
-  register: (data) => request({ url: '/auth/register', method: 'POST', data }),
-  login: (data) => request({ url: '/auth/login', method: 'POST', data }),
-  logout: () => request({ url: '/auth/logout', method: 'POST' }),
+  // 发送验证码：GET /auth/code?email=xxx
+  sendCode: (email) => request({ 
+    url: `/auth/code?email=${encodeURIComponent(email)}`, 
+    method: 'GET' 
+  }),
+  
+  // 用户注册：POST /auth/register
+  register: (data) => request({ 
+    url: '/auth/register', 
+    method: 'POST', 
+    data 
+  }),
+  
+  // 用户登录：POST /auth/login
+  login: (data) => request({ 
+    url: '/auth/login', 
+    method: 'POST', 
+    data 
+  }),
+  
+  logout: () => {
+    // 清除本地存储
+    uni.removeStorageSync(config.TOKEN_KEY)
+    uni.removeStorageSync(config.USER_INFO_KEY)
+    return Promise.resolve()
+  },
   
   // 工作台相关
   createSession: () => request({ url: '/workspace/create-session', method: 'POST' }),

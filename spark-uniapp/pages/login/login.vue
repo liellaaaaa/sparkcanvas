@@ -41,6 +41,8 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
+import http from '@/utils/http.js'
+import storage from '@/utils/storage.js'
 
 const formData = reactive({
   email: '',
@@ -49,13 +51,31 @@ const formData = reactive({
 
 const loading = ref(false)
 
+// 邮箱格式验证
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
 const handleLogin = async () => {
+  // 表单验证
   if (!formData.email.trim()) {
     uni.showToast({ title: '请输入邮箱', icon: 'none' })
     return
   }
+  
+  if (!validateEmail(formData.email)) {
+    uni.showToast({ title: '请输入正确的邮箱格式', icon: 'none' })
+    return
+  }
+  
   if (!formData.password.trim()) {
     uni.showToast({ title: '请输入密码', icon: 'none' })
+    return
+  }
+  
+  if (formData.password.length < 6) {
+    uni.showToast({ title: '密码长度至少6位', icon: 'none' })
     return
   }
   
@@ -63,21 +83,30 @@ const handleLogin = async () => {
   uni.showLoading({ title: '登录中...' })
   
   try {
-    // TODO: 调用登录API
-    // const result = await http.login(formData)
-    // uni.setStorageSync('access_token', result.access_token)
-    // uni.setStorageSync('user_info', result.user)
+    // 调用登录API
+    const result = await http.login({
+      email: formData.email.trim(),
+      password: formData.password
+    })
+    
+    // 存储Token和用户信息
+    storage.setToken(result.token)
+    storage.setUserInfo(result.user)
     
     uni.showToast({ title: '登录成功', icon: 'success' })
+    
+    // 延迟跳转，让用户看到成功提示
     setTimeout(() => {
       uni.switchTab({
         url: '/pages/workspace/workspace'
       })
     }, 1500)
   } catch (e) {
+    console.error('登录失败:', e)
     uni.showToast({
-      title: e.message || '登录失败',
-      icon: 'none'
+      title: e.message || '登录失败，请检查邮箱和密码',
+      icon: 'none',
+      duration: 2000
     })
   } finally {
     loading.value = false
