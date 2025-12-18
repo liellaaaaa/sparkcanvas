@@ -1,0 +1,82 @@
+{
+	"pages": [
+		{
+			"path": "pages/workspace/workspace",
+			"style": {
+				"navigationBarTitleText": "工作台",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
+			"path": "pages/register/register",
+			"style": {
+				"navigationBarTitleText": "注册"
+			}
+		},
+		{
+			"path": "pages/history/history",
+			"style": {
+				"navigationBarTitleText": "历史记录"
+			}
+		},
+		{
+			"path": "pages/prompt/prompt",
+			"style": {
+				"navigationBarTitleText": "Prompt管理"
+			}
+		},
+		{
+			"path": "pages/rag/rag",
+			"style": {
+				"navigationBarTitleText": "知识库"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "SparkCanvas",
+		"navigationBarBackgroundColor": "#FFFFFF",
+		"backgroundColor": "#F8F8F8",
+		"navigationStyle": "default"
+	},
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#3c9cff",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/workspace/workspace",
+				"iconPath": "static/tabbar/workspace.png",
+				"selectedIconPath": "static/tabbar/workspace-active.png",
+				"text": "工作台"
+			},
+			{
+				"pagePath": "pages/history/history",
+				"iconPath": "static/tabbar/history.png",
+				"selectedIconPath": "static/tabbar/history-active.png",
+				"text": "历史"
+			},
+			{
+				"pagePath": "pages/prompt/prompt",
+				"iconPath": "static/tabbar/prompt.png",
+				"selectedIconPath": "static/tabbar/prompt-active.png",
+				"text": "Prompt"
+			},
+			{
+				"pagePath": "pages/rag/rag",
+				"iconPath": "static/tabbar/rag.png",
+				"selectedIconPath": "static/tabbar/rag-active.png",
+				"text": "知识库"
+			}
+		]
+	},
+	"uniIdRouter": {}
+}
+
