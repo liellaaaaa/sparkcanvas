@@ -1,0 +1,33 @@
+### SparkCanvas 认证模块测试
+
+### 1. 健康检查
+GET http://localhost:8000/health
+
+### 2. 发送验证码
+GET http://localhost:8000/auth/code?email=test@example.com
+
+### 3. 用户注册
+POST http://localhost:8000/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "username": "testuser",
+  "password": "test123456",
+  "confirm_password": "test123456",
+  "code": "1234"
+}
+
+### 4. 用户登录
+POST http://localhost:8000/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "test123456"
+}
+
+### 5. 使用 Token 访问（需要先登录获取 token）
+GET http://localhost:8000/api/protected
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
