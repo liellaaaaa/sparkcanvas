@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.config import load_config, validate_config
 from core.logger import logger
 from routers.auth import router as auth_router
+from routers.workspace import router as workspace_router
 
 # 加载配置
 config = load_config()
@@ -35,6 +36,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(auth_router)
+app.include_router(workspace_router)
 
 
 @app.get("/")

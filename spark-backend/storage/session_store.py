@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from .redis_client import get_redis
-from ..core.config import AppConfig
+from core.config import AppConfig
 
 SESSION_TTL_SECONDS = 30 * 60  # 30分钟
 

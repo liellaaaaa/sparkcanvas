@@ -7,8 +7,8 @@ const config = {
   // 生产环境：需要配置实际的后端地址
   BASE_URL: 'http://localhost:8000',
   
-  // 请求超时时间（毫秒）
-  TIMEOUT: 10000,
+  // 请求超时时间（毫秒）- LLM 生成需要较长时间
+  TIMEOUT: 60000,
   
   // Token 存储 key
   TOKEN_KEY: 'access_token',
