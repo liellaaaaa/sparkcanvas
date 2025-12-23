@@ -32,8 +32,18 @@ const responseInterceptor = (response) => {
   
   // HTTP状态码处理
   if (statusCode === 200) {
-    // 后端直接返回数据，没有包装在 code/data 中
-    // 成功响应直接返回数据
+    // 后端返回格式: { code: 200, message: "success", data: {...}, error: null }
+    if (data && typeof data === 'object') {
+      if (data.code === 200) {
+        // 业务成功，返回data字段
+        return Promise.resolve(data)
+      } else {
+        // 业务错误，返回错误信息
+        const errorMsg = data.message || data.error || '请求失败'
+        return Promise.reject(new Error(errorMsg))
+      }
+    }
+    // 兼容直接返回数据的情况
     return Promise.resolve(data)
   } else if (statusCode === 400) {
     // 400 错误，通常是业务错误
@@ -123,8 +133,28 @@ const http = {
   regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data }),
   
   // 历史记录相关
-  getConversations: (params) => request({ url: '/history/conversations', method: 'GET', data: params }),
-  searchHistory: (params) => request({ url: '/history/search', method: 'GET', data: params }),
+  getConversations: (params) => {
+    // 将params对象转换为URL查询参数
+    const queryString = Object.keys(params || {})
+      .filter(key => params[key] !== undefined && params[key] !== null)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&')
+    return request({ 
+      url: `/api/v1/history/conversations${queryString ? '?' + queryString : ''}`, 
+      method: 'GET' 
+    })
+  },
+  searchHistory: (params) => {
+    // 将params对象转换为URL查询参数
+    const queryString = Object.keys(params || {})
+      .filter(key => params[key] !== undefined && params[key] !== null)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&')
+    return request({ 
+      url: `/api/v1/history/search${queryString ? '?' + queryString : ''}`, 
+      method: 'GET' 
+    })
+  },
   
   // 内容管理相关
   getContents: (params) => request({ url: '/contents/list', method: 'GET', data: params }),
