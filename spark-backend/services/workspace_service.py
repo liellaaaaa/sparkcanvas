@@ -24,7 +24,7 @@ from schemas.workspace import (
     WorkspaceRegenerateIn,
     WorkspaceRegenerateOut,
 )
-from storage import session_store
+from storage import session_store, history_store
 from utils.response import APIResponse, success_response
 
 
@@ -108,6 +108,19 @@ class WorkspaceService:
         assistant_text = f"{generated.title}\n\n{generated.body}"
         session_store.append_message(self.cfg, payload.session_id, "assistant", assistant_text)
 
+        # 保存到历史记录
+        try:
+            history_store.save_conversation_history(
+                self.cfg,
+                user_id,
+                payload.session_id,
+                payload.message,
+                assistant_text,
+            )
+        except Exception as e:
+            # 历史记录保存失败不影响主流程，仅记录日志
+            logger.warning(f"[Workspace] 保存历史记录失败: {e}")
+
         out = WorkspaceSendMessageOut(
             session_id=payload.session_id,
             content=generated,
@@ -157,6 +170,19 @@ class WorkspaceService:
         generated = await self._generate_content_with_llm(dummy_request, is_regenerate=True)
         assistant_text = f"{generated.title}\n\n{generated.body}"
         session_store.append_message(self.cfg, payload.session_id, "assistant", assistant_text)
+
+        # 保存到历史记录
+        try:
+            history_store.save_conversation_history(
+                self.cfg,
+                user_id,
+                payload.session_id,
+                last_user_msg,
+                assistant_text,
+            )
+        except Exception as e:
+            # 历史记录保存失败不影响主流程，仅记录日志
+            logger.warning(f"[Workspace] 保存历史记录失败: {e}")
 
         out = WorkspaceRegenerateOut(
             session_id=payload.session_id,
