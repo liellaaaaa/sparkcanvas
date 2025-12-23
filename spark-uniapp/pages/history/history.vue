@@ -4,18 +4,203 @@
       <text class="title">📚 历史记录</text>
     </view>
     
-    <view class="content-card card">
-      <view class="placeholder">
-        <text>历史记录功能开发中...</text>
+    <!-- 搜索栏 -->
+    <view class="search-card card">
+      <view class="search-box">
+        <input
+          class="search-input"
+          v-model="searchKeyword"
+          placeholder="搜索历史记录..."
+          @confirm="handleSearch"
+        />
+        <button class="btn btn-primary btn-small" @click="handleSearch">🔍 搜索</button>
       </view>
+      <view v-if="isSearchMode" class="search-tip">
+        <text>搜索关键词: {{ searchKeyword }}</text>
+        <text class="cancel-search" @click="cancelSearch">取消搜索</text>
+      </view>
+    </view>
+
+    <!-- 历史记录列表 -->
+    <view class="history-list">
+      <view v-if="loading" class="loading">
+        <text>加载中...</text>
+      </view>
+      
+      <view v-else-if="historyList.length === 0" class="empty">
+        <text>暂无历史记录</text>
+      </view>
+      
+      <view v-else>
+        <view
+          v-for="(item, index) in historyList"
+          :key="index"
+          class="history-item card"
+        >
+          <view class="item-header">
+            <text class="session-tag">会话: {{ item.session_id.slice(0, 8) }}...</text>
+            <text class="time-text">{{ formatTime(item.timestamp) }}</text>
+          </view>
+          
+          <view class="item-content">
+            <view class="message-section">
+              <text class="label">💬 用户消息:</text>
+              <text class="message-text">{{ item.message }}</text>
+            </view>
+            
+            <view class="response-section">
+              <text class="label">🤖 助手回复:</text>
+              <text class="response-text">{{ item.response }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分页 -->
+    <view v-if="total > 0" class="pagination">
+      <button
+        class="btn btn-outline btn-small"
+        :disabled="page === 1"
+        @click="loadPage(page - 1)"
+      >上一页</button>
+      <text class="page-info">第 {{ page }} / {{ totalPages }} 页 (共 {{ total }} 条)</text>
+      <button
+        class="btn btn-outline btn-small"
+        :disabled="page >= totalPages"
+        @click="loadPage(page + 1)"
+      >下一页</button>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import http from '@/utils/http.js'
 
-// TODO: 实现历史记录逻辑
+// 数据
+const historyList = ref([])
+const loading = ref(false)
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const searchKeyword = ref('')
+const isSearchMode = ref(false)
+
+// 计算总页数
+const totalPages = ref(0)
+
+// 格式化时间
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const date = new Date(timeStr)
+  const now = new Date()
+  const diff = now - date
+  
+  // 小于1分钟
+  if (diff < 60000) {
+    return '刚刚'
+  }
+  // 小于1小时
+  if (diff < 3600000) {
+    return `${Math.floor(diff / 60000)}分钟前`
+  }
+  // 小于1天
+  if (diff < 86400000) {
+    return `${Math.floor(diff / 3600000)}小时前`
+  }
+  // 小于7天
+  if (diff < 604800000) {
+    return `${Math.floor(diff / 86400000)}天前`
+  }
+  // 显示具体日期
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 加载历史记录
+const loadHistory = async (resetPage = false) => {
+  if (resetPage) {
+    page.value = 1
+  }
+  
+  loading.value = true
+  try {
+    let response
+    if (isSearchMode.value && searchKeyword.value.trim()) {
+      // 搜索模式
+      response = await http.searchHistory({
+        keyword: searchKeyword.value.trim(),
+        page: page.value,
+        page_size: pageSize.value
+      })
+    } else {
+      // 查询模式
+      response = await http.getConversations({
+        page: page.value,
+        page_size: pageSize.value
+      })
+    }
+    
+    if (response.code === 200) {
+      historyList.value = response.data.items || []
+      total.value = response.data.total || 0
+      totalPages.value = Math.ceil(total.value / pageSize.value)
+    } else {
+      uni.showToast({
+        title: response.message || '加载失败',
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('加载历史记录失败:', error)
+    uni.showToast({
+      title: error.message || '加载失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  if (!searchKeyword.value.trim()) {
+    uni.showToast({
+      title: '请输入搜索关键词',
+      icon: 'none'
+    })
+    return
+  }
+  isSearchMode.value = true
+  loadHistory(true)
+}
+
+// 取消搜索
+const cancelSearch = () => {
+  isSearchMode.value = false
+  searchKeyword.value = ''
+  loadHistory(true)
+}
+
+// 加载指定页
+const loadPage = (newPage) => {
+  if (newPage < 1 || newPage > totalPages.value) {
+    return
+  }
+  page.value = newPage
+  loadHistory()
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadHistory()
+})
 </script>
 
 <style scoped>
@@ -23,12 +208,13 @@ import { ref } from 'vue'
   min-height: 100vh;
   padding: 20rpx;
   background: #f8f8f8;
+  padding-bottom: 120rpx;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 40rpx;
-  padding: 40rpx 0;
+  margin-bottom: 30rpx;
+  padding: 40rpx 0 20rpx;
 }
 
 .title {
@@ -41,13 +227,160 @@ import { ref } from 'vue'
   background: #ffffff;
   border-radius: 24rpx;
   box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
-  padding: 40rpx 32rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
 }
 
-.placeholder {
-  text-align: center;
-  padding: 60rpx 0;
+.search-card {
+  margin-bottom: 30rpx;
+}
+
+.search-box {
+  display: flex;
+  gap: 20rpx;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  height: 70rpx;
+  padding: 0 20rpx;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.btn {
+  padding: 16rpx 32rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #007aff;
+  color: #ffffff;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2rpx solid #007aff;
+  color: #007aff;
+}
+
+.btn-small {
+  padding: 12rpx 24rpx;
+  font-size: 24rpx;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-tip {
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.cancel-search {
+  color: #007aff;
+  text-decoration: underline;
+}
+
+.history-list {
+  margin-bottom: 30rpx;
+}
+
+.history-item {
+  margin-bottom: 20rpx;
+}
+
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding-bottom: 15rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.session-tag {
+  font-size: 24rpx;
+  color: #007aff;
+  background: #e6f3ff;
+  padding: 6rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.time-text {
+  font-size: 24rpx;
   color: #999;
 }
-</style>
 
+.item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.message-section,
+.response-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.message-text,
+.response-text {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.6;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.response-text {
+  background: #f8f8f8;
+  padding: 20rpx;
+  border-radius: 12rpx;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.pagination {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  padding: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.08);
+  z-index: 100;
+}
+
+.page-info {
+  font-size: 24rpx;
+  color: #666;
+}
+</style>
