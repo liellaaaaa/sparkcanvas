@@ -8,13 +8,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import dashscope
 from dashscope import Generation
 
 from core.config import load_config, AppConfig
 from core.logger import logger
+from services.search_service import tavily_search
 from schemas.workspace import (
     WorkspaceSessionCreateOut,
     WorkspaceSendMessageIn,
@@ -101,8 +102,11 @@ class WorkspaceService:
         # 记录用户消息
         session_store.append_message(self.cfg, payload.session_id, "user", payload.message)
 
+        # 联网搜索：仅在素材源为 online 时执行
+        search_snippets = await self._maybe_online_search(payload)
+
         # 调用通义千问生成内容
-        generated = await self._generate_content_with_llm(payload)
+        generated = await self._generate_content_with_llm(payload, search_snippets)
 
         # 记录助手消息
         assistant_text = f"{generated.title}\n\n{generated.body}"
@@ -167,7 +171,10 @@ class WorkspaceService:
             material_source="online",
             platform="xiaohongshu",
         )
-        generated = await self._generate_content_with_llm(dummy_request, is_regenerate=True)
+        search_snippets = await self._maybe_online_search(dummy_request)
+        generated = await self._generate_content_with_llm(
+            dummy_request, search_snippets, is_regenerate=True
+        )
         assistant_text = f"{generated.title}\n\n{generated.body}"
         session_store.append_message(self.cfg, payload.session_id, "assistant", assistant_text)
 
@@ -195,7 +202,10 @@ class WorkspaceService:
     # ------------------------- 内部方法 -------------------------
 
     async def _generate_content_with_llm(
-        self, payload: WorkspaceSendMessageIn, is_regenerate: bool = False
+        self,
+        payload: WorkspaceSendMessageIn,
+        search_snippets: Optional[List[str]] = None,
+        is_regenerate: bool = False,
     ) -> WorkspaceContent:
         """
         使用阿里云通义千问生成内容
@@ -215,6 +225,16 @@ class WorkspaceService:
         user_prompt = payload.message if payload.message else "请生成一篇有趣的内容"
         if is_regenerate:
             user_prompt = f"请重新生成：{user_prompt}"
+
+        # 将联网搜索结果拼接到用户提示中，帮助模型结合最新信息
+        search_snippets = search_snippets or []
+        if search_snippets:
+            merged_snippets = "\n".join(f"- {item}" for item in search_snippets)
+            user_prompt = (
+                f"{user_prompt}\n\n"
+                f"【联网搜索摘要】以下是与主题相关的最新检索结果，请结合摘要创作：\n"
+                f"{merged_snippets}"
+            )
 
         # 设置 API Key
         dashscope.api_key = self.cfg.dashscope_api_key
@@ -256,5 +276,33 @@ class WorkspaceService:
         title = f"[{platform_name}] {action}失败 - 降级内容"
         body = f"抱歉，内容生成遇到问题：{error_msg}\n\n请稍后重试。"
         return WorkspaceContent(title=title, body=body, image_url=None)
+
+    # ------------------------- 辅助：联网搜索 -------------------------
+    async def _maybe_online_search(self, payload: WorkspaceSendMessageIn) -> List[str]:
+        """
+        当素材来源为 online 时，通过 Tavily 联网搜索返回简短摘要列表。
+        """
+        if payload.material_source != "online":
+            return []
+
+        results = await tavily_search(payload.message, self.cfg)
+        if not results:
+            return []
+
+        # 只取前3条，截断每条摘要长度，避免 prompt 过长
+        snippets: List[str] = []
+        for item in results[:3]:
+            title = item.get("title", "").strip()
+            summary = item.get("content", "").strip()
+            url = item.get("url", "").strip()
+            combined = f"{title} | {summary}"
+            if len(combined) > 400:
+                combined = combined[:400] + "..."
+            if url:
+                combined = f"{combined} （来源：{url}）"
+            snippets.append(combined)
+
+        logger.info(f"[Workspace] 联网搜索注入 {len(snippets)} 条摘要供生成使用")
+        return snippets
 
 
