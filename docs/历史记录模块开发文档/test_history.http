@@ -1,0 +1,49 @@
+### 历史记录模块测试文件
+### 使用前请先配置 baseUrl 和 token 变量
+
+@baseUrl = http://localhost:8000
+@token = your_access_token_here
+
+### ============================================
+### 1. 查询对话历史记录（所有会话）
+### ============================================
+GET {{baseUrl}}/api/v1/history/conversations?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ============================================
+### 2. 按会话ID查询历史记录
+### ============================================
+@sessionId = 550e8400-e29b-41d4-a716-446655440000
+GET {{baseUrl}}/api/v1/history/conversations?session_id={{sessionId}}&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ============================================
+### 3. 按关键词搜索历史记录
+### ============================================
+@keyword = 旅行
+GET {{baseUrl}}/api/v1/history/search?keyword={{keyword}}&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ============================================
+### 4. 测试分页功能（第2页）
+### ============================================
+GET {{baseUrl}}/api/v1/history/conversations?page=2&page_size=10
+Authorization: Bearer {{token}}
+
+### ============================================
+### 5. 测试最大每页数量
+### ============================================
+GET {{baseUrl}}/api/v1/history/conversations?page=1&page_size=100
+Authorization: Bearer {{token}}
+
+### ============================================
+### 6. 测试边界情况（空关键词，应该返回400）
+### ============================================
+GET {{baseUrl}}/api/v1/history/search?keyword=&page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### ============================================
+### 7. 测试未授权访问（应该返回401）
+### ============================================
+GET {{baseUrl}}/api/v1/history/conversations?page=1&page_size=20
+
