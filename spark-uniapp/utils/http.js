@@ -39,8 +39,9 @@ const responseInterceptor = (response) => {
       if ('code' in data) {
         // 有 code 字段，按统一格式处理
         if (data.code === 200) {
-          // 业务成功，返回data字段（如果存在）或整个响应
-          return Promise.resolve(data.data !== undefined ? data.data : data)
+          // 业务成功，返回完整响应对象（保持 code、message、data 结构）
+          // 这样前端可以统一检查 response.code === 200 和访问 response.data
+          return Promise.resolve(data)
         } else {
           // 业务错误，返回错误信息
           const errorMsg = data.message || data.error || '请求失败'
@@ -179,10 +180,84 @@ const http = {
   batchGenerateImage: (data) => request({ url: '/image/batch-generate', method: 'POST', data }),
   
   // RAG知识库相关
-  uploadDocument: (data) => request({ url: '/rag/upload', method: 'POST', data }),
-  deleteDocument: (data) => request({ url: '/rag/delete', method: 'DELETE', data }),
-  getDocuments: (params) => request({ url: '/rag/list', method: 'GET', data: params }),
-  searchRAG: (data) => request({ url: '/rag/search', method: 'POST', data })
+  // 上传文档：POST /api/v1/rag/upload (multipart/form-data)
+  uploadDocument: (filePath) => {
+    return new Promise((resolve, reject) => {
+      const token = uni.getStorageSync(config.TOKEN_KEY)
+      uni.uploadFile({
+        url: BASE_URL + '/api/v1/rag/upload',
+        filePath: filePath,
+        name: 'file',
+        header: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        success: (res) => {
+          // 检查HTTP状态码
+          if (res.statusCode === 200) {
+            try {
+              const data = JSON.parse(res.data)
+              if (data.code === 200) {
+                resolve(data)
+              } else {
+                reject(new Error(data.message || data.detail || '上传失败'))
+              }
+            } catch (e) {
+              reject(new Error('响应解析失败'))
+            }
+          } else if (res.statusCode === 401) {
+            // 未授权，清除Token并跳转登录
+            uni.removeStorageSync(config.TOKEN_KEY)
+            uni.removeStorageSync(config.USER_INFO_KEY)
+            uni.reLaunch({
+              url: '/pages/login/login'
+            })
+            reject(new Error('登录已过期，请重新登录'))
+          } else {
+            // 其他HTTP错误
+            try {
+              const data = JSON.parse(res.data)
+              reject(new Error(data.detail || data.message || `上传失败: ${res.statusCode}`))
+            } catch (e) {
+              reject(new Error(`上传失败: ${res.statusCode}`))
+            }
+          }
+        },
+        fail: (err) => {
+          reject(new Error(err.errMsg || '上传失败'))
+        }
+      })
+    })
+  },
+  
+  // 删除文档：DELETE /api/v1/rag/delete (请求体包含 document_id)
+  deleteDocument: (documentId) => {
+    return request({ 
+      url: '/api/v1/rag/delete', 
+      method: 'DELETE',
+      data: {
+        document_id: documentId
+      }
+    })
+  },
+  
+  // 文档列表：GET /api/v1/rag/list?page=1&page_size=20
+  getDocuments: (params) => {
+    const queryString = Object.keys(params || {})
+      .filter(key => params[key] !== undefined && params[key] !== null)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&')
+    return request({ 
+      url: `/api/v1/rag/list${queryString ? '?' + queryString : ''}`, 
+      method: 'GET' 
+    })
+  },
+  
+  // 语义检索：POST /api/v1/rag/search
+  searchRAG: (data) => request({ 
+    url: '/api/v1/rag/search', 
+    method: 'POST', 
+    data 
+  })
 }
 
 export default http
