@@ -1,0 +1,54 @@
+### RAG知识库API测试文件
+### 使用说明：
+### 1. 先登录获取Token
+### 2. 将Token替换到所有请求的Authorization头中
+### 3. 根据需要修改请求参数
+
+@baseUrl = http://localhost:8000
+@token = your-token-here
+
+### 1. 登录获取Token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "your-email@example.com",
+  "password": "your-password"
+}
+
+### 2. 上传文档
+POST {{baseUrl}}/api/v1/rag/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test_document.txt"
+Content-Type: text/plain
+
+这是一个测试文档。
+用于测试RAG知识库的文档上传和检索功能。
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 3. 查询文档列表
+GET {{baseUrl}}/api/v1/rag/list?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### 4. 语义检索
+POST {{baseUrl}}/api/v1/rag/search
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "query": "测试",
+  "top_k": 5
+}
+
+### 5. 删除文档
+DELETE {{baseUrl}}/api/v1/rag/delete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "document_id": "your-document-id"
+}
+

@@ -33,6 +33,9 @@ wheels/
 # 日志
 logs/
 *.log
+# 但允许test目录下的log文件
+!test/**/*.log
+!test/*.log
 
 # 数据库
 *.db
