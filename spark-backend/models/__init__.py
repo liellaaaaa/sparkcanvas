@@ -70,6 +70,7 @@ def create_session_factory(engine):
 
 # 导入所有模型（确保在使用 Base.metadata.create_all 前导入）
 from . import user
+from . import prompt
 
 __all__ = ['Base', 'create_async_engine_from_config', 'create_session_factory', 'AsyncSession']
 

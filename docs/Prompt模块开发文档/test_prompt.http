@@ -1,0 +1,128 @@
+### Prompt模块API测试文件
+
+### 前置条件：需要先登录获取Token
+### 1. 登录获取Token
+POST http://localhost:8000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### 将返回的access_token复制到下面的变量中
+@token = your_access_token_here
+
+### ============================================
+### Prompt模块接口测试
+### ============================================
+
+### 2. 创建Prompt
+POST http://localhost:8000/api/v1/prompt/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "抖音综合模板",
+  "content": "你是一名抖音【{{垂类}}】短视频创作者...",
+  "platform": "douyin",
+  "category": "生活vlog",
+  "description": "用于生成抖音短视频内容的综合模板"
+}
+
+### 3. 创建小红书Prompt
+POST http://localhost:8000/api/v1/prompt/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "小红书图文模板",
+  "content": "你是一名长期深耕小红书平台的【{{垂类}}】KOC创作者...",
+  "platform": "xiaohongshu",
+  "category": "家居收纳",
+  "description": "用于生成小红书图文内容的模板"
+}
+
+### 4. 查询Prompt列表（全部）
+GET http://localhost:8000/api/v1/prompt/list?page=1&page_size=20
+Authorization: Bearer {{token}}
+
+### 5. 按平台筛选Prompt列表
+GET http://localhost:8000/api/v1/prompt/list?page=1&page_size=20&platform=douyin
+Authorization: Bearer {{token}}
+
+### 6. 按分类筛选Prompt列表
+GET http://localhost:8000/api/v1/prompt/list?page=1&page_size=20&category=生活vlog
+Authorization: Bearer {{token}}
+
+### 7. 按平台和分类筛选Prompt列表
+GET http://localhost:8000/api/v1/prompt/list?page=1&page_size=20&platform=douyin&category=生活vlog
+Authorization: Bearer {{token}}
+
+### 8. 更新Prompt（需要替换{id}为实际的Prompt ID）
+PUT http://localhost:8000/api/v1/prompt/update
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "抖音综合模板（已更新）",
+  "description": "更新后的描述"
+}
+
+### 9. 删除Prompt（需要替换{id}为实际的Prompt ID）
+DELETE http://localhost:8000/api/v1/prompt/delete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1
+}
+
+### ============================================
+### 错误场景测试
+### ============================================
+
+### 10. 测试：创建Prompt时缺少必填字段
+POST http://localhost:8000/api/v1/prompt/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": ""
+}
+
+### 11. 测试：创建Prompt时platform值不合法
+POST http://localhost:8000/api/v1/prompt/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "测试模板",
+  "content": "测试内容",
+  "platform": "invalid_platform"
+}
+
+### 12. 测试：更新不存在的Prompt
+PUT http://localhost:8000/api/v1/prompt/update
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 99999,
+  "name": "不存在的Prompt"
+}
+
+### 13. 测试：删除不存在的Prompt
+DELETE http://localhost:8000/api/v1/prompt/delete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 99999
+}
+
+### 14. 测试：未授权访问（不带Token）
+GET http://localhost:8000/api/v1/prompt/list
+Content-Type: application/json
+
