@@ -4,11 +4,15 @@ app:
   port: 8000
 
 mysql:
-  url: "mysql+aiomysql://root:123456@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
 
 
 redis:
-  url: "redis://localhost:6379/0"
+  # Redis连接URL格式：
+  # 无密码: redis://host:port/db
+  # 有密码: redis://:password@host:port/db
+  # 示例: redis://:mypassword@localhost:6379/0
+  url: "redis://:e65K4t8w2@localhost:59000/0"
 
 jwt:
   secret_key: "sparkcanvas-secret-key-2024"
