@@ -41,3 +41,9 @@ tavily:
 chroma:
   persist_directory: "./chroma_db"
 
+dashscope:
+  api_key: "sk-8b5b0dbee9344fb3be7368ce24a27f65"
+  model: "qwen-max"
+  temperature: 0.7
+  embedding_model: "text-embedding-v4"
+
