@@ -8,7 +8,11 @@ from core.logger import logger
 from routers.auth import router as auth_router
 from routers.workspace import router as workspace_router
 from routers.history import router as history_router
+<<<<<<< HEAD
 from routers.prompt import router as prompt_router
+=======
+from routers.rag import router as rag_router
+>>>>>>> f019063d178a8f6859d533d312797a87a3984a7d
 
 # 加载配置
 config = load_config()
@@ -41,6 +45,7 @@ app.include_router(auth_router)
 app.include_router(workspace_router)
 app.include_router(history_router)
 app.include_router(prompt_router)
+app.include_router(rag_router)
 
 
 @app.get("/")

@@ -4,15 +4,19 @@ app:
   port: 8000
 
 mysql:
-  url: "mysql+aiomysql://root:123456@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
 
 # 阿里云通义千问
 dashscope:
   api_key: "sk-8b5b0dbee9344fb3be7368ce24a27f65"
   model: "qwen-max"
   temperature: 0.7
+  embedding_model: "text-embedding-v4"
 
 # 搜索API
 tavily:
   api_key: "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"
 
+# Chroma向量数据库
+chroma:
+  persist_directory: "./chroma_db"
