@@ -32,15 +32,23 @@ const responseInterceptor = (response) => {
   
   // HTTP状态码处理
   if (statusCode === 200) {
-    // 后端返回格式: { code: 200, message: "success", data: {...}, error: null }
+    // 后端返回格式可能是: { code: 200, message: "success", data: {...}, error: null }
+    // 也可能是直接返回数据: { user: {...}, token: "..." }
     if (data && typeof data === 'object') {
-      if (data.code === 200) {
-        // 业务成功，返回data字段
-        return Promise.resolve(data)
+      // 检查是否存在 code 字段
+      if ('code' in data) {
+        // 有 code 字段，按统一格式处理
+        if (data.code === 200) {
+          // 业务成功，返回data字段（如果存在）或整个响应
+          return Promise.resolve(data.data !== undefined ? data.data : data)
+        } else {
+          // 业务错误，返回错误信息
+          const errorMsg = data.message || data.error || '请求失败'
+          return Promise.reject(new Error(errorMsg))
+        }
       } else {
-        // 业务错误，返回错误信息
-        const errorMsg = data.message || data.error || '请求失败'
-        return Promise.reject(new Error(errorMsg))
+        // 没有 code 字段，直接返回数据（兼容登录等直接返回数据的接口）
+        return Promise.resolve(data)
       }
     }
     // 兼容直接返回数据的情况
