@@ -170,10 +170,16 @@ const http = {
   searchContents: (params) => request({ url: '/contents/search', method: 'GET', data: params }),
   
   // Prompt管理相关
-  createPrompt: (data) => request({ url: '/prompt/create', method: 'POST', data }),
-  getPrompts: (params) => request({ url: '/prompt/list', method: 'GET', data: params }),
-  updatePrompt: (data) => request({ url: '/prompt/update', method: 'PUT', data }),
-  deletePrompt: (data) => request({ url: '/prompt/delete', method: 'DELETE', data }),
+  createPrompt: (data) => request({ url: '/api/v1/prompt/create', method: 'POST', data }),
+  getPrompts: (params) => {
+    const queryString = Object.keys(params || {})
+      .filter(key => params[key] !== undefined && params[key] !== null)
+      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+      .join('&')
+    return request({ url: `/api/v1/prompt/list${queryString ? '?' + queryString : ''}`, method: 'GET' })
+  },
+  updatePrompt: (data) => request({ url: '/api/v1/prompt/update', method: 'PUT', data }),
+  deletePrompt: (data) => request({ url: '/api/v1/prompt/delete', method: 'DELETE', data }),
   
   // 配图生成相关
   generateImage: (data) => request({ url: '/image/generate', method: 'POST', data }),
