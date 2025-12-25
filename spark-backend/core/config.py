@@ -44,6 +44,7 @@ class AppConfig:
     dashscope_api_key: str = ""
     dashscope_model: str = "qwen-max"
     dashscope_temperature: float = 0.7
+    dashscope_embedding_model: str = "text-embedding-v4"
 
 
 def _merge_dict(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
@@ -117,6 +118,7 @@ def load_config(env: str | None = None) -> AppConfig:
         dashscope_api_key=os.getenv("DASHSCOPE_API_KEY", data.get("dashscope", {}).get("api_key", "")),
         dashscope_model=os.getenv("DASHSCOPE_MODEL", data.get("dashscope", {}).get("model", "qwen-max")),
         dashscope_temperature=float(os.getenv("DASHSCOPE_TEMPERATURE", data.get("dashscope", {}).get("temperature", 0.7))),
+        dashscope_embedding_model=os.getenv("DASHSCOPE_EMBEDDING_MODEL", data.get("dashscope", {}).get("embedding_model", "text-embedding-v4")),
     )
     return cfg
 
@@ -160,6 +162,10 @@ def validate_config(cfg: AppConfig) -> Dict[str, Any]:
         warnings["jwt"] = "未配置JWT密钥，认证功能将不可用"
     if not cfg.mail_username or not cfg.mail_password:
         warnings["mail"] = "未配置邮件服务，验证码发送将不可用"
+    if not cfg.dashscope_api_key:
+        warnings["dashscope"] = "未配置DashScope API Key，RAG知识库功能将不可用"
+    if not cfg.dashscope_embedding_model:
+        warnings["dashscope_embedding"] = "未配置DashScope Embedding模型，RAG知识库功能将不可用"
     if not cfg.dalle_api_key:
         warnings["dalle"] = "未配置DALL·E API，配图生成将不可用"
     if not cfg.tavily_api_key:
