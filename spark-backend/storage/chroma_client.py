@@ -6,18 +6,18 @@ from pathlib import Path
 
 try:
     from langchain_community.vectorstores import Chroma
-    from langchain_openai import OpenAIEmbeddings
     CHROMA_AVAILABLE = True
 except ImportError:
     CHROMA_AVAILABLE = False
     Chroma = None  # type: ignore
-    OpenAIEmbeddings = None  # type: ignore
 
-from ..core.config import AppConfig
+from core.config import AppConfig
+from core.logger import logger
+from services.embedding_service import get_embeddings as get_dashscope_embeddings
 
 
 _chroma_client: Optional[Chroma] = None
-_embeddings: Optional[OpenAIEmbeddings] = None
+_embeddings = None
 
 
 def get_chroma_client(config: AppConfig) -> Optional[Chroma]:
@@ -33,33 +33,41 @@ def get_chroma_client(config: AppConfig) -> Optional[Chroma]:
     global _chroma_client, _embeddings
     
     if not CHROMA_AVAILABLE:
+        logger.warning("[Chroma] langchain_community未安装，Chroma功能不可用")
         return None
     
-    if not config.openai_api_key or not config.openai_embedding_model:
+    if not config.dashscope_api_key or not config.dashscope_embedding_model:
+        logger.warning(f"[Chroma] DashScope配置不完整: api_key={'已配置' if config.dashscope_api_key else '未配置'}, embedding_model={config.dashscope_embedding_model or '未配置'}")
         return None
     
     if _chroma_client is None:
-        # 确保目录存在
-        persist_dir = Path(config.chroma_persist_directory)
-        persist_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 初始化 Embeddings
-        _embeddings = OpenAIEmbeddings(
-            model=config.openai_embedding_model,
-            openai_api_key=config.openai_api_key,
-            openai_api_base=config.openai_base_url if config.openai_base_url else None,
-        )
-        
-        # 初始化 Chroma
-        _chroma_client = Chroma(
-            persist_directory=str(persist_dir),
-            embedding_function=_embeddings,
-        )
+        try:
+            # 确保目录存在
+            persist_dir = Path(config.chroma_persist_directory)
+            persist_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 初始化 DashScope Embeddings
+            _embeddings = get_dashscope_embeddings(config)
+            if _embeddings is None:
+                logger.error("[Chroma] DashScope Embeddings初始化失败")
+                return None
+            
+            # 初始化 Chroma
+            _chroma_client = Chroma(
+                persist_directory=str(persist_dir),
+                embedding_function=_embeddings,
+            )
+            logger.info(f"[Chroma] 客户端初始化成功，持久化目录: {persist_dir}")
+        except Exception as e:
+            logger.error(f"[Chroma] 客户端初始化失败: {e}")
+            import traceback
+            logger.error(f"[Chroma] 初始化异常详情: {traceback.format_exc()}")
+            return None
     
     return _chroma_client
 
 
-def get_embeddings(config: AppConfig) -> Optional[OpenAIEmbeddings]:
+def get_embeddings(config: AppConfig):
     """
     获取 Embeddings 实例
     
@@ -67,22 +75,7 @@ def get_embeddings(config: AppConfig) -> Optional[OpenAIEmbeddings]:
         config: 应用配置对象
     
     Returns:
-        OpenAIEmbeddings实例
+        DashScopeEmbeddings实例
     """
-    global _embeddings
-    
-    if not CHROMA_AVAILABLE:
-        return None
-    
-    if not config.openai_api_key or not config.openai_embedding_model:
-        return None
-    
-    if _embeddings is None:
-        _embeddings = OpenAIEmbeddings(
-            model=config.openai_embedding_model,
-            openai_api_key=config.openai_api_key,
-            openai_api_base=config.openai_base_url if config.openai_base_url else None,
-        )
-    
-    return _embeddings
+    return get_dashscope_embeddings(config)
 
