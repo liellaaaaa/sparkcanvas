@@ -8,7 +8,6 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine
 from models import Base
 from models.user import User, EmailCode
-from models.prompt import Prompt
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
