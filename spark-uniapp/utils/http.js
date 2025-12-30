@@ -189,9 +189,9 @@ const http = {
   
   // 工作台相关
   createSession: () => request({ url: '/api/v1/workspace/create-session', method: 'POST', timeout: 10000 }),
-  sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data, timeout: 60000 }), // LLM 生成需要更长时间
+  sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data, timeout: 120000 }), // LLM 生成需要更长时间
   getSession: (sessionId) => request({ url: `/api/v1/workspace/session/${sessionId}`, method: 'GET', timeout: 10000 }),
-  regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data, timeout: 60000 }), // LLM 生成需要更长时间
+  regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data, timeout: 120000 }), // LLM 生成需要更长时间
   
   // 历史记录相关
   getConversations: (params) => {
