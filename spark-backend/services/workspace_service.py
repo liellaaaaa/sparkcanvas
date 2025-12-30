@@ -16,6 +16,7 @@ from dashscope import Generation
 from core.config import load_config, AppConfig
 from core.logger import logger
 from services.search_service import tavily_search
+from services.rag_service import RAGService
 from schemas.workspace import (
     WorkspaceSessionCreateOut,
     WorkspaceSendMessageIn,
@@ -99,14 +100,23 @@ class WorkspaceService:
 
             raise HTTPException(status_code=404, detail="会话不存在或已过期")
 
-        # 记录用户消息
-        session_store.append_message(self.cfg, payload.session_id, "user", payload.message)
+        # 记录用户消息（同时保存素材源和平台信息，供重新生成时使用）
+        session_store.append_message(
+            self.cfg, 
+            payload.session_id, 
+            "user", 
+            payload.message,
+            metadata={"material_source": payload.material_source, "platform": payload.platform}
+        )
 
         # 联网搜索：仅在素材源为 online 时执行
         search_snippets = await self._maybe_online_search(payload)
+        
+        # RAG知识库检索：仅在素材源为 rag 时执行
+        rag_snippets = await self._maybe_rag_search(user_id, payload)
 
-        # 调用通义千问生成内容
-        generated = await self._generate_content_with_llm(payload, search_snippets)
+        # 调用通义千问生成内容（优先使用RAG检索结果）
+        generated = await self._generate_content_with_llm(payload, search_snippets, rag_snippets)
 
         # 记录助手消息
         assistant_text = f"{generated.title}\n\n{generated.body}"
@@ -157,23 +167,33 @@ class WorkspaceService:
             f"重新生成，adjustments={payload.adjustments}"
         )
 
-        # 获取最近的用户消息作为重新生成的依据
+        # 获取最近的用户消息和素材源作为重新生成的依据
         messages = session.get("messages", [])
         last_user_msg = ""
+        last_material_source = "online"  # 默认值
+        last_platform = "xiaohongshu"  # 默认值
+        
+        # 从会话历史中查找最近的用户消息和对应的素材源
         for msg in reversed(messages):
             if msg.get("role") == "user":
                 last_user_msg = msg.get("content", "")
+                # 尝试从消息元数据中获取素材源和平台（如果之前保存过）
+                if "material_source" in msg:
+                    last_material_source = msg.get("material_source", "online")
+                if "platform" in msg:
+                    last_platform = msg.get("platform", "xiaohongshu")
                 break
         
         dummy_request = WorkspaceSendMessageIn(
             session_id=payload.session_id,
             message=last_user_msg,
-            material_source="online",
-            platform="xiaohongshu",
+            material_source=last_material_source,
+            platform=last_platform,
         )
         search_snippets = await self._maybe_online_search(dummy_request)
+        rag_snippets = await self._maybe_rag_search(user_id, dummy_request)
         generated = await self._generate_content_with_llm(
-            dummy_request, search_snippets, is_regenerate=True
+            dummy_request, search_snippets, rag_snippets, is_regenerate=True
         )
         assistant_text = f"{generated.title}\n\n{generated.body}"
         session_store.append_message(self.cfg, payload.session_id, "assistant", assistant_text)
@@ -205,6 +225,7 @@ class WorkspaceService:
         self,
         payload: WorkspaceSendMessageIn,
         search_snippets: Optional[List[str]] = None,
+        rag_snippets: Optional[List[str]] = None,
         is_regenerate: bool = False,
     ) -> WorkspaceContent:
         """
@@ -226,9 +247,27 @@ class WorkspaceService:
         if is_regenerate:
             user_prompt = f"请重新生成：{user_prompt}"
 
-        # 将联网搜索结果拼接到用户提示中，帮助模型结合最新信息
+        # 优先使用RAG知识库检索结果，如果存在则优先使用
+        rag_snippets = rag_snippets or []
         search_snippets = search_snippets or []
-        if search_snippets:
+        
+        if rag_snippets:
+            # 使用RAG知识库内容（优先）
+            merged_rag = "\n".join(f"- {item}" for item in rag_snippets)
+            user_prompt = (
+                f"{user_prompt}\n\n"
+                f"【知识库内容】以下是从RAG知识库中检索到的相关内容，请优先基于这些内容进行创作：\n"
+                f"{merged_rag}"
+            )
+            # 如果同时有联网搜索结果，也一并提供作为补充
+            if search_snippets:
+                merged_search = "\n".join(f"- {item}" for item in search_snippets)
+                user_prompt += (
+                    f"\n\n【联网搜索摘要】以下是与主题相关的最新检索结果，可作为补充参考：\n"
+                    f"{merged_search}"
+                )
+        elif search_snippets:
+            # 仅使用联网搜索结果
             merged_snippets = "\n".join(f"- {item}" for item in search_snippets)
             user_prompt = (
                 f"{user_prompt}\n\n"
@@ -304,5 +343,59 @@ class WorkspaceService:
 
         logger.info(f"[Workspace] 联网搜索注入 {len(snippets)} 条摘要供生成使用")
         return snippets
+
+    # ------------------------- 辅助：RAG知识库检索 -------------------------
+    async def _maybe_rag_search(
+        self, user_id: int, payload: WorkspaceSendMessageIn
+    ) -> List[str]:
+        """
+        当素材来源为 rag 时，通过RAG知识库进行语义检索，返回相关文档片段列表。
+        
+        Args:
+            user_id: 用户ID
+            payload: 工作台消息请求
+            
+        Returns:
+            检索到的文档片段列表（字符串列表）
+        """
+        if payload.material_source != "rag":
+            return []
+
+        try:
+            rag_service = RAGService(self.cfg)
+            search_result = await rag_service.search(
+                user_id=user_id,
+                query=payload.message,
+                top_k=5,  # 返回Top-5最相关的文档片段
+            )
+            
+            if not search_result or not search_result.results:
+                logger.info(f"[Workspace] RAG知识库检索无结果，query={payload.message}")
+                return []
+            
+            # 提取文档内容，格式化后返回
+            snippets: List[str] = []
+            for result in search_result.results:
+                content = result.content.strip()
+                # 截断过长的内容，避免prompt过长
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                
+                # 添加元数据信息（文件名等）
+                metadata = result.metadata or {}
+                file_name = metadata.get("file_name", "未知文档")
+                snippet = f"{content}（来源：{file_name}）"
+                snippets.append(snippet)
+            
+            logger.info(
+                f"[Workspace] RAG知识库检索成功，user_id={user_id}, "
+                f"query={payload.message}, 返回{len(snippets)}条片段"
+            )
+            return snippets
+            
+        except Exception as e:
+            # RAG检索失败不影响主流程，仅记录日志
+            logger.warning(f"[Workspace] RAG知识库检索失败: {e}")
+            return []
 
 
