@@ -164,6 +164,11 @@ const http = {
       method: 'GET' 
     })
   },
+  deleteHistory: (data) => request({ 
+    url: '/api/v1/history/delete', 
+    method: 'DELETE', 
+    data 
+  }),
   
   // 内容管理相关
   getContents: (params) => request({ url: '/contents/list', method: 'GET', data: params }),
