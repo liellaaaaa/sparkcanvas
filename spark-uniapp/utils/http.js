@@ -138,7 +138,6 @@ const http = {
   createSession: () => request({ url: '/api/v1/workspace/create-session', method: 'POST' }),
   sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data }),
   getSession: (sessionId) => request({ url: `/api/v1/workspace/session/${sessionId}`, method: 'GET' }),
-  uploadMaterial: (data) => request({ url: '/api/v1/workspace/upload-material', method: 'POST', data }),
   regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data }),
   
   // 历史记录相关

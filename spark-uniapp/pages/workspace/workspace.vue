@@ -51,21 +51,6 @@
         </view>
       </view>
 
-      <!-- 文件上传（素材源为 upload 时显示） -->
-      <view v-if="materialSource === 'upload'" class="field-row column">
-        <view class="field-label">上传素材文件</view>
-        <view class="upload-area" @click="handleChooseFile">
-          <text v-if="!uploadedFile">点击选择文件（支持 PDF/Word/Txt）</text>
-          <text v-else class="uploaded-file-name">{{ uploadedFile.name }} ({{ formatFileSize(uploadedFile.size) }})</text>
-        </view>
-        <button
-          v-if="uploadedFile"
-          class="btn btn-small btn-outline"
-          :loading="uploading"
-          @click="handleUploadMaterial"
-        >上传到工作台</button>
-      </view>
-
       <!-- 用户输入 -->
       <view class="field-row column">
         <view class="field-label">创作需求</view>
@@ -91,11 +76,10 @@
         </button>
         <button
           class="btn btn-primary"
-          :loading="loading"
           :disabled="loading || !inputText.trim()"
           @click="handleGenerate"
         >
-          {{ loading ? '生成中...' : '✨ 生成内容' }}
+           生成内容
         </button>
       </view>
 
@@ -146,8 +130,7 @@ const platforms = [
 ]
 const materialSources = [
   { label: '联网检索', value: 'online' },
-  { label: 'RAG知识库', value: 'rag' },
-  { label: '上传素材', value: 'upload' }
+  { label: 'RAG知识库', value: 'rag' }
 ]
 
 // ========== 响应式状态 ==========
@@ -156,10 +139,6 @@ const sessionInfo = ref({})
 const platform = ref('xiaohongshu')
 const materialSource = ref('online')
 const inputText = ref('')
-
-// 上传相关
-const uploadedFile = ref(null)
-const uploading = ref(false)
 
 // 生成相关
 const loading = ref(false)
@@ -181,13 +160,6 @@ const formatTime = (isoStr) => {
   if (!isoStr) return ''
   const d = new Date(isoStr)
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-const formatFileSize = (bytes) => {
-  if (!bytes) return '0B'
-  if (bytes < 1024) return bytes + 'B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB'
-  return (bytes / 1024 / 1024).toFixed(1) + 'MB'
 }
 
 // ========== 会话管理 ==========
@@ -232,66 +204,6 @@ const refreshSessionInfo = async () => {
   } catch (e) {
     console.error('获取会话信息失败:', e)
     uni.showToast({ title: e?.message || '获取会话信息失败', icon: 'none' })
-  }
-}
-
-// ========== 文件上传 ==========
-const handleChooseFile = () => {
-  uni.chooseMessageFile({
-    count: 1,
-    type: 'file',
-    extension: ['pdf', 'doc', 'docx', 'txt'],
-    success: (res) => {
-      if (res.tempFiles && res.tempFiles.length > 0) {
-        uploadedFile.value = res.tempFiles[0]
-      }
-    },
-    fail: () => {
-      // 小程序环境可能不支持，尝试 chooseFile
-      uni.chooseFile && uni.chooseFile({
-        count: 1,
-        extension: ['pdf', 'doc', 'docx', 'txt'],
-        success: (res) => {
-          if (res.tempFiles && res.tempFiles.length > 0) {
-            uploadedFile.value = res.tempFiles[0]
-          }
-        }
-      })
-    }
-  })
-}
-
-const handleUploadMaterial = async () => {
-  if (!uploadedFile.value || !sessionId.value) return
-  try {
-    uploading.value = true
-    // 使用 uni.uploadFile 上传
-    const token = uni.getStorageSync('access_token')
-    const uploadRes = await new Promise((resolve, reject) => {
-      uni.uploadFile({
-        url: 'http://localhost:8000/api/v1/workspace/upload-material',
-        filePath: uploadedFile.value.path,
-        name: 'file',
-        formData: { session_id: sessionId.value },
-        header: { 'Authorization': `Bearer ${token}` },
-        success: (res) => {
-          if (res.statusCode === 200) {
-            resolve(JSON.parse(res.data))
-          } else {
-            reject(new Error('上传失败'))
-          }
-        },
-        fail: reject
-      })
-    })
-    if (uploadRes?.code === 200) {
-      uni.showToast({ title: '素材上传成功', icon: 'success' })
-    }
-  } catch (e) {
-    console.error('上传素材失败:', e)
-    uni.showToast({ title: e?.message || '上传失败', icon: 'none' })
-  } finally {
-    uploading.value = false
   }
 }
 
@@ -533,30 +445,6 @@ onLoad(async () => {
   color: #666;
 }
 
-/* 上传区域 */
-.upload-area {
-  width: 100%;
-  min-height: 120rpx;
-  border: 2rpx dashed #d0d0d0;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #fafafa;
-  margin-bottom: 16rpx;
-  padding: 20rpx;
-  box-sizing: border-box;
-}
-
-.upload-area text {
-  font-size: 26rpx;
-  color: #999;
-}
-
-.uploaded-file-name {
-  color: #3c9cff !important;
-}
-
 /* 输入区域 */
 .input-area {
   width: 100%;
@@ -595,7 +483,11 @@ onLoad(async () => {
 
 .btn-primary {
   background: linear-gradient(135deg, #3c9cff 0%, #4facfe 100%);
-  color: #fff;
+  color: #fff !important;
+}
+
+.btn-primary:disabled {
+  color: #fff !important;
 }
 
 .btn-secondary {
