@@ -1,0 +1,639 @@
+# Prompt模块前端开发规则
+
+## 规则目的
+
+本规则文件定义了SparkCanvas前端Prompt模块的开发规范，确保代码质量、UI一致性和用户体验。
+
+## 适用范围
+
+- `spark-uniapp/pages/prompt/prompt.vue` - Prompt管理页面
+- Prompt模块相关的所有前端代码
+- UI组件和交互设计
+
+## 技术栈规范
+
+### 1. Vue3 Composition API
+
+**必须使用Composition API：**
+
+```javascript
+<script setup>
+import { ref, reactive, computed, onLoad } from 'vue'
+import http from '@/utils/http.js'
+import storage from '@/utils/storage.js'
+
+// 响应式数据
+const loading = ref(false)
+const promptList = ref([])
+const formData = reactive({
+  name: '',
+  content: '',
+  platform: '通用'
+})
+</script>
+```
+
+**禁止使用Options API：**
+- ❌ 不使用`export default { data(), methods: {} }`
+- ✅ 使用`<script setup>`
+
+### 2. uni-app规范
+
+**页面生命周期：**
+```javascript
+import { onLoad, onShow, onPullDownRefresh } from '@dcloudio/uni-app'
+
+onLoad(() => {
+  // 页面加载时执行
+  loadPromptList()
+})
+
+onShow(() => {
+  // 页面显示时执行
+  refreshData()
+})
+```
+
+**路由跳转：**
+```javascript
+// 跳转到TabBar页面
+uni.switchTab({ url: '/pages/workspace/workspace' })
+
+// 普通页面跳转
+uni.navigateTo({ url: '/pages/detail/detail' })
+
+// 返回上一页
+uni.navigateBack()
+```
+
+**提示消息：**
+```javascript
+// 成功提示
+uni.showToast({ title: '操作成功', icon: 'success' })
+
+// 错误提示
+uni.showToast({ title: '操作失败', icon: 'none', duration: 2000 })
+
+// 加载提示
+uni.showLoading({ title: '加载中...' })
+uni.hideLoading()
+```
+
+## HTTP请求规范
+
+### 1. 使用封装的http工具
+
+**必须使用`utils/http.js`中的方法：**
+
+```javascript
+import http from '@/utils/http.js'
+
+// 创建Prompt
+const createPrompt = async (data) => {
+  try {
+    const result = await http.createPrompt(data)
+    // result已经是解析后的data字段
+    return result
+  } catch (e) {
+    console.error('创建失败:', e)
+    uni.showToast({ title: e.message || '创建失败', icon: 'none' })
+    throw e
+  }
+}
+```
+
+**API方法映射：**
+- `http.createPrompt(data)` → `POST /api/v1/prompt/create`
+- `http.getPrompts(params)` → `GET /api/v1/prompt/list`
+- `http.updatePrompt(data)` → `PUT /api/v1/prompt/update`
+- `http.deletePrompt(data)` → `DELETE /api/v1/prompt/delete`
+
+### 2. 请求参数格式
+
+**GET请求（查询参数）：**
+```javascript
+// http.js中已处理，直接传对象
+const params = {
+  page: 1,
+  page_size: 20,
+  platform: 'douyin',
+  category: '生活vlog'
+}
+const result = await http.getPrompts(params)
+```
+
+**POST/PUT/DELETE请求（请求体）：**
+```javascript
+const data = {
+  name: '模板名称',
+  content: 'Prompt内容',
+  platform: 'xiaohongshu',
+  category: '家居收纳',
+  description: '模板描述'
+}
+const result = await http.createPrompt(data)
+```
+
+### 3. 响应数据处理
+
+**后端响应格式：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { ... }
+}
+```
+
+**http.js已自动处理，直接使用data：**
+```javascript
+const result = await http.getPrompts(params)
+// result 已经是 data 字段的内容
+const prompts = result.items || []
+const total = result.total || 0
+```
+
+### 4. 错误处理
+
+**统一错误处理：**
+```javascript
+try {
+  const result = await http.createPrompt(data)
+  uni.showToast({ title: '创建成功', icon: 'success' })
+  // 处理成功逻辑
+} catch (e) {
+  // http.js已处理401，自动跳转登录
+  // 其他错误显示提示
+  console.error('操作失败:', e)
+  uni.showToast({ 
+    title: e.message || '操作失败，请稍后重试', 
+    icon: 'none',
+    duration: 2000
+  })
+}
+```
+
+## UI设计规范
+
+### 1. 页面布局
+
+**页面结构：**
+```vue
+<template>
+  <view class="prompt-page">
+    <!-- 头部 -->
+    <view class="header">
+      <text class="title">🎨 Prompt管理</text>
+    </view>
+    
+    <!-- 内容卡片 -->
+    <view class="content-card card">
+      <!-- 内容 -->
+    </view>
+  </view>
+</template>
+```
+
+**页面样式：**
+```css
+.prompt-page {
+  min-height: 100vh;
+  padding: 20rpx;
+  background: #f8f8f8; /* 或渐变背景 */
+}
+```
+
+### 2. 卡片式设计
+
+**卡片样式：**
+```css
+.card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  padding: 40rpx 32rpx;
+  margin-bottom: 24rpx;
+}
+```
+
+### 3. 按钮样式
+
+**主要按钮：**
+```css
+.btn-primary {
+  background: linear-gradient(135deg, #3c9cff 0%, #4facfe 100%);
+  color: #fff;
+  border-radius: 999rpx;
+  padding: 0 32rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 28rpx;
+}
+```
+
+**次要按钮：**
+```css
+.btn-secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: #fff;
+}
+```
+
+**轮廓按钮：**
+```css
+.btn-outline {
+  background: transparent;
+  border: 2rpx solid #3c9cff;
+  color: #3c9cff;
+}
+```
+
+### 4. 输入框样式
+
+**输入框：**
+```css
+.input {
+  width: 100%;
+  height: 88rpx;
+  padding: 0 28rpx;
+  border-radius: 16rpx;
+  background: #f8f8f8;
+  border: 2rpx solid #e0e0e0;
+  font-size: 30rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: #3c9cff;
+  background: #f0f7ff;
+}
+```
+
+**文本域：**
+```css
+.textarea {
+  width: 100%;
+  min-height: 200rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  border: 2rpx solid #e5e5e5;
+  background: #fafafa;
+  font-size: 28rpx;
+}
+```
+
+### 5. 标签样式
+
+**标签选择：**
+```css
+.tag {
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+}
+
+.tag-primary {
+  background: linear-gradient(135deg, #3c9cff 0%, #4facfe 100%);
+  color: #fff;
+}
+
+.tag-default {
+  background-color: #f5f5f5;
+  color: #666;
+}
+```
+
+### 6. 单位规范
+
+**使用rpx单位：**
+- 所有尺寸使用`rpx`（响应式像素）
+- 1rpx = 屏幕宽度/750
+- 字体大小：24rpx, 26rpx, 28rpx, 30rpx, 32rpx, 34rpx, 44rpx, 48rpx
+- 间距：16rpx, 20rpx, 24rpx, 32rpx, 40rpx
+
+## 状态管理规范
+
+### 1. 响应式数据
+
+**使用ref和reactive：**
+```javascript
+// 简单值使用ref
+const loading = ref(false)
+const page = ref(1)
+const total = ref(0)
+
+// 对象使用reactive
+const formData = reactive({
+  name: '',
+  content: '',
+  platform: '通用'
+})
+
+// 数组使用ref
+const promptList = ref([])
+```
+
+### 2. 计算属性
+
+**使用computed：**
+```javascript
+import { computed } from 'vue'
+
+const filteredList = computed(() => {
+  return promptList.value.filter(item => {
+    if (selectedPlatform.value && item.platform !== selectedPlatform.value) {
+      return false
+    }
+    return true
+  })
+})
+```
+
+### 3. 加载状态
+
+**统一管理加载状态：**
+```javascript
+const loading = ref(false)
+const creating = ref(false)
+const updating = ref(false)
+const deleting = ref(false)
+
+// 在按钮上使用
+<button :loading="creating" :disabled="creating" @click="handleCreate">
+  {{ creating ? '创建中...' : '创建' }}
+</button>
+```
+
+## 表单验证规范
+
+### 1. 前端验证
+
+**必填字段验证：**
+```javascript
+const validateForm = () => {
+  if (!formData.name.trim()) {
+    uni.showToast({ title: '请输入模板名称', icon: 'none' })
+    return false
+  }
+  
+  if (!formData.content.trim()) {
+    uni.showToast({ title: '请输入Prompt内容', icon: 'none' })
+    return false
+  }
+  
+  // 长度验证
+  if (formData.name.length > 255) {
+    uni.showToast({ title: '模板名称不能超过255个字符', icon: 'none' })
+    return false
+  }
+  
+  return true
+}
+```
+
+### 2. 平台值验证
+
+**使用Literal类型限制：**
+```javascript
+const platforms = [
+  { label: '小红书', value: 'xiaohongshu' },
+  { label: '抖音', value: 'douyin' },
+  { label: '通用', value: '通用' }
+]
+
+const validatePlatform = (platform) => {
+  const validPlatforms = ['xiaohongshu', 'douyin', '通用']
+  return validPlatforms.includes(platform)
+}
+```
+
+## 列表展示规范
+
+### 1. 分页列表
+
+**分页参数：**
+```javascript
+const page = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+const loadPromptList = async () => {
+  try {
+    loading.value = true
+    const params = {
+      page: page.value,
+      page_size: pageSize.value,
+      platform: selectedPlatform.value || undefined,
+      category: selectedCategory.value || undefined
+    }
+    const result = await http.getPrompts(params)
+    promptList.value = result.items || []
+    total.value = result.total || 0
+  } catch (e) {
+    console.error('加载列表失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
+```
+
+### 2. 下拉刷新
+
+**实现下拉刷新：**
+```javascript
+import { onPullDownRefresh } from '@dcloudio/uni-app'
+
+onPullDownRefresh(async () => {
+  page.value = 1
+  await loadPromptList()
+  uni.stopPullDownRefresh()
+})
+```
+
+**在pages.json中启用：**
+```json
+{
+  "path": "pages/prompt/prompt",
+  "style": {
+    "enablePullDownRefresh": true
+  }
+}
+```
+
+### 3. 上拉加载更多
+
+**实现上拉加载：**
+```javascript
+const loadMore = async () => {
+  if (promptList.value.length >= total.value) {
+    uni.showToast({ title: '没有更多数据了', icon: 'none' })
+    return
+  }
+  
+  page.value++
+  await loadPromptList()
+}
+```
+
+## 交互设计规范
+
+### 1. 操作反馈
+
+**成功操作：**
+```javascript
+uni.showToast({ 
+  title: '创建成功', 
+  icon: 'success',
+  duration: 1500
+})
+
+// 延迟跳转或刷新
+setTimeout(() => {
+  loadPromptList()
+}, 1500)
+```
+
+**错误操作：**
+```javascript
+uni.showToast({ 
+  title: errorMessage, 
+  icon: 'none',
+  duration: 2000
+})
+```
+
+### 2. 确认对话框
+
+**删除确认：**
+```javascript
+const handleDelete = (id) => {
+  uni.showModal({
+    title: '确认删除',
+    content: '确定要删除这个Prompt模板吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        await deletePrompt(id)
+      }
+    }
+  })
+}
+```
+
+### 3. 加载状态
+
+**按钮加载状态：**
+```vue
+<button 
+  :loading="loading" 
+  :disabled="loading || !formData.name.trim()"
+  @click="handleSubmit"
+>
+  {{ loading ? '提交中...' : '提交' }}
+</button>
+```
+
+## 代码组织规范
+
+### 1. 代码结构
+
+**Vue组件结构：**
+```vue
+<template>
+  <!-- 模板 -->
+</template>
+
+<script setup>
+// 1. 导入
+import { ref, reactive, computed, onLoad } from 'vue'
+import http from '@/utils/http.js'
+
+// 2. 响应式数据
+const loading = ref(false)
+
+// 3. 计算属性
+const filteredList = computed(() => { ... })
+
+// 4. 方法
+const handleCreate = async () => { ... }
+
+// 5. 生命周期
+onLoad(() => { ... })
+</script>
+
+<style scoped>
+/* 样式 */
+</style>
+```
+
+### 2. 方法命名
+
+**命名规范：**
+- 事件处理：`handleXxx`（如`handleCreate`, `handleDelete`）
+- 数据加载：`loadXxx`（如`loadPromptList`）
+- 数据刷新：`refreshXxx`（如`refreshData`）
+- 验证：`validateXxx`（如`validateForm`）
+- 格式化：`formatXxx`（如`formatTime`）
+
+### 3. 注释规范
+
+**添加必要注释：**
+```javascript
+// ========== 响应式数据 ==========
+const loading = ref(false)
+
+// ========== 方法 ==========
+/**
+ * 创建Prompt
+ */
+const handleCreate = async () => {
+  // 验证表单
+  if (!validateForm()) return
+  
+  // 调用API
+  try {
+    await http.createPrompt(formData)
+    // 成功处理
+  } catch (e) {
+    // 错误处理
+  }
+}
+```
+
+## 最佳实践
+
+### 1. 性能优化
+
+- 使用`v-if`和`v-show`合理控制渲染
+- 长列表使用虚拟滚动（如需要）
+- 图片使用懒加载
+- 避免在模板中使用复杂计算，使用computed
+
+### 2. 用户体验
+
+- 操作前给出明确提示
+- 加载状态清晰可见
+- 错误信息友好易懂
+- 操作成功后及时反馈
+
+### 3. 代码复用
+
+- 公共逻辑提取为工具函数
+- 公共组件提取为独立组件
+- 样式使用公共类名
+
+### 4. 错误处理
+
+- 所有API调用使用try-catch
+- 网络错误友好提示
+- 401错误自动跳转登录（http.js已处理）
+- 其他错误显示具体信息
+
+## 常见问题避免
+
+1. ❌ **忘记处理加载状态**：所有异步操作都要管理loading
+2. ❌ **缺少表单验证**：提交前必须验证
+3. ❌ **错误处理不完善**：所有API调用都要catch错误
+4. ❌ **单位使用错误**：使用px而不是rpx
+5. ❌ **直接操作DOM**：使用Vue响应式数据
+6. ❌ **硬编码API地址**：使用config.js中的BASE_URL

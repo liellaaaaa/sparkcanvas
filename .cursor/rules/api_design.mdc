@@ -1,0 +1,444 @@
+# API设计规范
+
+## 规则目的
+
+本规则文件定义了SparkCanvas项目的RESTful API设计规范，确保API的一致性、可维护性和易用性。
+
+## 适用范围
+
+- 所有API接口设计
+- 路由定义
+- 请求/响应格式
+- 错误处理
+
+## RESTful API设计原则
+
+### 1. 资源导向
+
+**使用名词表示资源，使用HTTP动词表示操作：**
+
+```python
+# ✅ 正确
+POST   /api/v1/prompt/create      # 创建Prompt
+GET    /api/v1/prompt/list        # 查询Prompt列表
+GET    /api/v1/prompt/{id}        # 获取单个Prompt
+PUT    /api/v1/prompt/update      # 更新Prompt
+DELETE /api/v1/prompt/delete      # 删除Prompt
+
+# ❌ 错误
+POST   /api/v1/createPrompt
+GET    /api/v1/getPromptList
+POST   /api/v1/updatePrompt
+```
+
+### 2. HTTP方法语义
+
+| 方法 | 用途 | 幂等性 | 请求体 |
+|------|------|--------|--------|
+| GET | 查询资源 | 是 | 否 |
+| POST | 创建资源 | 否 | 是 |
+| PUT | 更新资源（完整） | 是 | 是 |
+| PATCH | 更新资源（部分） | 否 | 是 |
+| DELETE | 删除资源 | 是 | 否 |
+
+### 3. URL设计规范
+
+**路径结构：**
+```
+/api/v1/{模块}/{资源}/{操作}
+```
+
+**示例：**
+```
+/api/v1/prompt/create
+/api/v1/prompt/list
+/api/v1/prompt/update
+/api/v1/prompt/delete
+```
+
+**路径命名：**
+- 使用小写字母
+- 使用连字符（-）分隔单词
+- 避免使用下划线
+- 使用复数形式表示集合
+
+## 请求设计规范
+
+### 1. 请求头
+
+**必需请求头：**
+```
+Authorization: Bearer {access_token}
+Content-Type: application/json
+```
+
+**可选请求头：**
+```
+X-Request-ID: {uuid}  # 请求追踪ID
+```
+
+### 2. 请求参数
+
+**路径参数：**
+```python
+@router.get("/prompt/{prompt_id}")
+async def get_prompt(prompt_id: int):
+    pass
+```
+
+**查询参数：**
+```python
+@router.get("/prompt/list")
+async def list_prompts(
+    page: int = 1,
+    page_size: int = 20,
+    platform: Optional[str] = None,
+):
+    pass
+```
+
+**请求体：**
+```python
+@router.post("/prompt/create")
+async def create_prompt(payload: PromptCreateIn):
+    pass
+```
+
+### 3. 参数验证
+
+**使用Pydantic进行验证：**
+
+```python
+from pydantic import BaseModel, Field
+
+class PromptCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255, description="模板名称")
+    content: str = Field(..., min_length=1, description="Prompt内容")
+    platform: Literal["xiaohongshu", "douyin", "通用"] = Field(
+        default="通用",
+        description="平台类型"
+    )
+```
+
+## 响应设计规范
+
+### 1. 统一响应格式
+
+**所有API返回统一的响应结构：**
+
+```python
+class APIResponse(BaseModel):
+    code: int
+    message: str
+    data: Optional[Any] = None
+    error: Optional[Any] = None
+```
+
+**成功响应示例：**
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "id": 1,
+        "name": "模板名称",
+        "content": "Prompt内容"
+    },
+    "error": null
+}
+```
+
+**错误响应示例：**
+```json
+{
+    "code": 400,
+    "message": "请求参数错误",
+    "data": null,
+    "error": {
+        "name": "模板名称不能为空"
+    }
+}
+```
+
+### 2. HTTP状态码
+
+| 状态码 | 含义 | 使用场景 |
+|--------|------|----------|
+| 200 | 成功 | 请求成功处理 |
+| 201 | 已创建 | 资源创建成功 |
+| 400 | 请求错误 | 参数验证失败 |
+| 401 | 未授权 | Token无效或过期 |
+| 403 | 禁止访问 | 无权限访问资源 |
+| 404 | 未找到 | 资源不存在 |
+| 429 | 请求过多 | 超过限流阈值 |
+| 500 | 服务器错误 | 内部服务器错误 |
+| 503 | 服务不可用 | 服务暂时不可用 |
+
+### 3. 分页响应
+
+**分页列表响应格式：**
+
+```python
+class PromptListOut(BaseModel):
+    total: int = Field(..., description="总数量")
+    page: int = Field(..., description="当前页码")
+    page_size: int = Field(..., description="每页数量")
+    items: List[PromptOut] = Field(..., description="数据列表")
+```
+
+**响应示例：**
+```json
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "total": 100,
+        "page": 1,
+        "page_size": 20,
+        "items": [...]
+    }
+}
+```
+
+## 认证与授权
+
+### 1. JWT认证
+
+**所有需要认证的接口使用JWT Token：**
+
+```python
+from core.auth import AuthHandler
+from dependencies import get_auth_handler
+
+auth_handler: AuthHandler = get_auth_handler()
+CurrentUserId = Annotated[int, Depends(auth_handler.auth_access_dependency)]
+
+@router.post("/prompt/create")
+async def create_prompt(
+    payload: PromptCreateIn,
+    current_user_id: CurrentUserId,
+):
+    pass
+```
+
+### 2. 权限校验
+
+**资源所有权校验：**
+
+```python
+async def update_prompt(
+    prompt_id: int,
+    user_id: int,
+    data: PromptUpdateIn,
+):
+    # 检查资源是否存在
+    prompt = await self.repo.get_by_id(prompt_id)
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt不存在")
+    
+    # 检查权限
+    if prompt.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权限")
+    
+    # 执行更新
+    ...
+```
+
+## 错误处理规范
+
+### 1. 错误响应格式
+
+**参数验证错误：**
+```json
+{
+    "code": 400,
+    "message": "请求参数错误",
+    "data": null,
+    "error": {
+        "name": "模板名称不能为空",
+        "content": "Prompt内容不能为空"
+    }
+}
+```
+
+**业务逻辑错误：**
+```json
+{
+    "code": 400,
+    "message": "业务逻辑错误",
+    "data": null,
+    "error": "该模板名称已存在"
+}
+```
+
+**服务器错误：**
+```json
+{
+    "code": 500,
+    "message": "服务器内部错误",
+    "data": null,
+    "error": "错误详情（开发环境）"
+}
+```
+
+### 2. 异常处理
+
+**使用HTTPException：**
+
+```python
+from fastapi import HTTPException
+
+# 参数错误
+raise HTTPException(
+    status_code=400,
+    detail="name和content不能为空"
+)
+
+# 资源不存在
+raise HTTPException(
+    status_code=404,
+    detail="Prompt不存在"
+)
+
+# 权限错误
+raise HTTPException(
+    status_code=403,
+    detail="无权限访问此资源"
+)
+```
+
+## API版本管理
+
+### 1. URL版本控制
+
+**在URL中包含版本号：**
+
+```
+/api/v1/prompt/create
+/api/v2/prompt/create  # 未来版本
+```
+
+### 2. 版本兼容性
+
+- 保持向后兼容
+- 废弃的API标记为deprecated
+- 提供迁移指南
+
+## 接口文档
+
+### 1. OpenAPI/Swagger
+
+**使用FastAPI自动生成文档：**
+
+```python
+app = FastAPI(
+    title="SparkCanvas API",
+    description="SparkCanvas 后端 API",
+    version="1.0.0"
+)
+```
+
+**访问文档：**
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### 2. 接口描述
+
+**添加详细的接口描述：**
+
+```python
+@router.post(
+    "/create",
+    response_model=APIResponse,
+    summary="创建Prompt",
+    description="创建新的Prompt模板，用于内容生成时的提示词管理",
+    tags=["Prompt管理"]
+)
+async def create_prompt(...):
+    """创建Prompt模板
+    
+    详细说明：
+    - 需要JWT认证
+    - name和content为必填字段
+    - platform可选，默认为"通用"
+    """
+    pass
+```
+
+## 性能优化
+
+### 1. 分页查询
+
+**所有列表接口必须支持分页：**
+
+```python
+@router.get("/list")
+async def list_prompts(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+):
+    offset = (page - 1) * page_size
+    limit = page_size
+    ...
+```
+
+### 2. 字段筛选
+
+**支持按字段筛选：**
+
+```python
+@router.get("/list")
+async def list_prompts(
+    platform: Optional[str] = Query(None, description="平台筛选"),
+    category: Optional[str] = Query(None, description="分类筛选"),
+):
+    ...
+```
+
+### 3. 响应压缩
+
+**大响应使用压缩：**
+
+```python
+from fastapi.middleware.gzip import GZipMiddleware
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+```
+
+## 安全规范
+
+### 1. 输入验证
+
+- 验证所有用户输入
+- 使用Pydantic进行类型和格式验证
+- 防止SQL注入（使用ORM）
+- 防止XSS攻击（转义输出）
+
+### 2. 敏感信息
+
+- 不在URL中传递敏感信息
+- 不在日志中记录敏感信息
+- 使用HTTPS传输
+
+### 3. 限流
+
+**使用限流中间件：**
+
+```python
+from core.rate_limit import rate_limit_middleware
+
+@router.post("/create")
+@rate_limit_middleware(max_requests=10, window_seconds=60)
+async def create_prompt(...):
+    pass
+```
+
+## 最佳实践
+
+1. **RESTful设计**：遵循REST原则，使用标准HTTP方法
+2. **统一响应**：所有接口返回统一格式
+3. **错误处理**：提供清晰的错误信息
+4. **版本控制**：在URL中包含版本号
+5. **文档完善**：提供详细的API文档
+6. **性能优化**：支持分页和筛选
+7. **安全考虑**：验证输入，保护敏感信息
