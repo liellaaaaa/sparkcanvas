@@ -17,6 +17,7 @@ from core.config import load_config, AppConfig
 from core.logger import logger
 from services.search_service import tavily_search
 from services.rag_service import RAGService
+from services.prompt_loader import PromptLoader, PromptNotFoundError
 from schemas.workspace import (
     WorkspaceSessionCreateOut,
     WorkspaceSendMessageIn,
@@ -50,6 +51,7 @@ class WorkspaceService:
 
     def __init__(self, cfg: AppConfig | None = None) -> None:
         self.cfg = cfg or _cfg
+        self.prompt_loader = PromptLoader()
 
     # ------------------------- 会话相关 -------------------------
 
@@ -231,17 +233,54 @@ class WorkspaceService:
         """
         使用阿里云通义千问生成内容
         """
-        # 构建 prompt
-        platform_name = "小红书" if payload.platform == "xiaohongshu" else "抖音"
+        # 平台映射：前端传入的平台标识 -> prompts 目录中的平台名称
+        if payload.platform == "xiaohongshu":
+            platform_name = "小红书"
+            prompt_platform = "xhs"
+        elif payload.platform == "douyin":
+            platform_name = "抖音"
+            prompt_platform = "douyin"
+        else:
+            platform_name = payload.platform or "内容平台"
+            prompt_platform = "global"
+
         action = "重新生成" if is_regenerate else "生成"
-        
-        system_prompt = f"""你是一个专业的{platform_name}内容创作助手。
-请根据用户的需求，生成适合{platform_name}平台的爆款内容。
-要求：
-1. 标题要吸引眼球，适合{platform_name}风格
-2. 正文内容要有价值，排版清晰
-3. 使用适当的emoji增加可读性
-4. 输出格式：第一行是标题，空一行后是正文内容"""
+
+        # 选择模式：目前简单按平台使用 default，后续可根据业务扩展为 short_video 等
+        prompt_mode = "default"
+
+        # 尝试从 prompts 目录加载带占位符的 system prompt，失败则回退到内置模板
+        try:
+            variables = {
+                # TODO: 如需可从用户信息中注入真实昵称 / 品牌名等
+                "username": "",
+                "brand_name": "",
+                "target_audience": "",
+                "video_topic": "",
+                "user_requirement": payload.message or "",
+            }
+            prompt_result = self.prompt_loader.load_prompt(
+                platform=prompt_platform,
+                mode=prompt_mode,
+                variables=variables,
+            )
+            system_prompt = prompt_result.content
+            logger.info(
+                f"[Workspace] 使用 prompts/{prompt_platform}/{prompt_mode}.prompt 作为 system prompt",
+            )
+        except (PromptNotFoundError, ValueError) as e:
+            logger.warning(
+                f"[Workspace] Prompt 加载失败，使用内置 system_prompt: {e}",
+            )
+            system_prompt = (
+                f"你是一个专业的{platform_name}内容创作助手。\n"
+                f"请根据用户的需求，生成适合{platform_name}平台的爆款内容。\n"
+                "要求：\n"
+                f"1. 标题要吸引眼球，适合{platform_name}风格\n"
+                "2. 正文内容要有价值，排版清晰\n"
+                "3. 使用适当的emoji增加可读性\n"
+                "4. 输出格式：第一行是标题，空一行后是正文内容"
+            )
 
         user_prompt = payload.message if payload.message else "请生成一篇有趣的内容"
         if is_regenerate:

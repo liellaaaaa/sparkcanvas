@@ -43,7 +43,7 @@
         class="search-result-item card"
       >
         <view class="result-header">
-          <text class="result-score">相似度: {{ (result.score * 100).toFixed(1) }}%</text>
+          <text class="result-score">距离值: {{ formatDistance(result.distance) }}</text>
           <text class="result-file">{{ result.metadata.file_name }}</text>
         </view>
         <view class="result-content">
@@ -133,6 +133,13 @@ const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+// 格式化距离值，保留3位小数，数值越小表示越相似
+const formatDistance = (distance) => {
+  const value = Number(distance)
+  if (Number.isNaN(value)) return '-'
+  return value.toFixed(3)
 }
 
 // 格式化时间

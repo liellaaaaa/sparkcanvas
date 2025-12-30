@@ -130,7 +130,11 @@ async def search_documents(
     current_user_id: CurrentUserId,
 ):
     """
-    按关键词进行语义检索，返回相似度最高的文档片段。
+    按关键词进行语义检索，返回与查询最相近的文档片段。
+    
+    返回结果中的 score 字段为 Chroma 返回的原始距离值（distance）：
+    - 数值越小表示越相似
+    - 数值越大表示越不相似
     """
     service = RAGService()
     try:

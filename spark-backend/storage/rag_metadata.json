@@ -13,6 +13,13 @@
       "file_size": 667,
       "chunks_count": 1,
       "uploaded_at": "2025-12-30T00:24:02.987537Z"
+    },
+    "87f70eca-e7a7-402e-9de7-9ead3e2a6e51": {
+      "document_id": "87f70eca-e7a7-402e-9de7-9ead3e2a6e51",
+      "file_name": "test2.txt",
+      "file_size": 1352,
+      "chunks_count": 1,
+      "uploaded_at": "2025-12-30T06:39:44.556382Z"
     }
   }
 }
