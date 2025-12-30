@@ -14,7 +14,7 @@ from typing import Annotated, Optional
 
 from core.auth import AuthHandler
 from dependencies import get_auth_handler
-from schemas.history import ConversationHistoryListOut
+from schemas.history import ConversationHistoryListOut, ConversationHistoryDeleteIn
 from services.history_service import HistoryService
 from utils.response import APIResponse
 
@@ -82,4 +82,27 @@ async def search_conversation_history(
     return await service.search_conversation_history(
         current_user_id, keyword, page, page_size
     )
+
+
+@router.delete(
+    "/delete",
+    response_model=APIResponse,
+    summary="删除历史记录",
+)
+async def delete_conversation_history(
+    payload: ConversationHistoryDeleteIn,
+    current_user_id: CurrentUserId,
+):
+    """
+    删除指定的对话历史记录。
+    
+    Args:
+        payload: 删除请求数据（包含session_id和timestamp）
+        current_user_id: 当前用户ID（从Token中解析）
+    
+    Returns:
+        删除成功响应
+    """
+    service = HistoryService()
+    return await service.delete_conversation_history(current_user_id, payload)
 
