@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
 
 from core.auth import AuthHandler
@@ -18,7 +18,6 @@ from schemas.workspace import (
     WorkspaceSendMessageIn,
     WorkspaceSendMessageOut,
     WorkspaceSessionInfoOut,
-    WorkspaceUploadMaterialOut,
     WorkspaceRegenerateIn,
     WorkspaceRegenerateOut,
 )
@@ -73,36 +72,6 @@ async def get_session_info(
     if not info:
         raise HTTPException(status_code=404, detail="会话不存在或已过期")
     return APIResponse(code=200, message="success", data=info)
-
-
-@router.post(
-    "/upload-material",
-    response_model=APIResponse,
-    summary="上传素材/文档",
-)
-async def upload_material(
-    session_id: str,
-    current_user_id: int = Depends(auth_handler.auth_access_dependency),
-    file: UploadFile = File(...),
-):
-    """
-    上传素材或文档到工作台。
-
-    当前实现仅做占位：保存文件基本信息到响应中，后续可接入 RAG / 知识库服务。
-    """
-    # 简单的占位实现：不落地保存文件，仅返回元信息
-    from datetime import datetime
-
-    contents = await file.read()
-    file_size = len(contents)
-
-    dummy_out = WorkspaceUploadMaterialOut(
-        file_id=f"{session_id}:{file.filename}",
-        file_name=file.filename or "unknown",
-        file_size=file_size,
-        uploaded_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
-    )
-    return APIResponse(code=200, message="success", data=dummy_out)
 
 
 @router.post("/regenerate", response_model=APIResponse, summary="重新生成")

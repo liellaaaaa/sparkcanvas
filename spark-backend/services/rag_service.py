@@ -293,6 +293,142 @@ class RAGService:
             logger.error(f"[RAG] 查询文档列表失败: {e}")
             raise
     
+    def _convert_distance_to_similarity(self, distances: List[float]) -> List[float]:
+        """
+        将Chroma返回的距离分数转换为相似度分数
+        
+        Chroma返回的是distances（距离），距离越小越相似。
+        根据实际测试，Chroma返回的距离值通常在0.5-2.0之间。
+        
+        转换策略（结合绝对阈值和相对关系）：
+        1. 使用反距离归一化：similarity = 1 / (1 + distance)
+        2. 根据距离的绝对值设置相似度上限：
+           - distance < 0.5: 相似度可达1.0（100%）
+           - distance < 1.0: 相似度上限0.9（90%）
+           - distance < 1.5: 相似度上限0.7（70%）
+           - distance >= 1.5: 相似度上限0.5（50%）
+        3. 在绝对阈值范围内，使用相对关系调整
+        
+        Args:
+            distances: 距离分数列表（距离越小越相似）
+        
+        Returns:
+            相似度分数列表（0.0-1.0，表示0%-100%，数值越大越相似）
+        """
+        if not distances:
+            return []
+        
+        min_distance = min(distances)
+        max_distance = max(distances)
+        
+        # 如果所有距离相同，根据距离绝对值返回相似度
+        if max_distance == min_distance:
+            distance = min_distance
+            if distance < 0.5:
+                return [1.0] * len(distances)
+            elif distance < 1.0:
+                return [0.9] * len(distances)
+            elif distance < 1.5:
+                return [0.7] * len(distances)
+            else:
+                return [0.5] * len(distances)
+        
+        # 根据距离绝对值计算相似度
+        def get_similarity_from_distance(d: float) -> float:
+            """
+            根据距离绝对值计算相似度
+            
+            使用分段线性函数，让相似度更合理：
+            - distance < 0.5: 相似度 0.9-1.0（非常相关）
+            - distance < 1.0: 相似度 0.7-0.9（相关）
+            - distance < 1.5: 相似度 0.5-0.7（一般相关）
+            - distance >= 1.5: 相似度 0.0-0.5（不太相关）
+            """
+            if d < 0.5:
+                # 距离很小，相似度很高
+                return 0.9 + (0.5 - d) / 0.5 * 0.1  # 0.9-1.0
+            elif d < 1.0:
+                # 距离较小，相似度较高
+                return 0.7 + (1.0 - d) / 0.5 * 0.2  # 0.7-0.9
+            elif d < 1.5:
+                # 距离中等，相似度中等
+                return 0.5 + (1.5 - d) / 0.5 * 0.2  # 0.5-0.7
+            else:
+                # 距离较大，相似度较低
+                # 使用反距离：similarity = 1 / (1 + distance)，然后缩放到0-0.5
+                inv_sim = 1.0 / (1.0 + d)
+                return inv_sim * 0.5  # 0.0-0.5
+        
+        # 计算每个距离的相似度
+        similarity_scores = [get_similarity_from_distance(d) for d in distances]
+        
+        # 如果有多个结果，使用相对关系微调（但不超过绝对阈值）
+        # 注意：相似度已经根据绝对阈值计算，这里不需要再次归一化
+        # 直接返回即可，保持绝对阈值的限制
+        
+        # 确保相似度在[0, 1]范围内
+        similarity_scores = [max(0.0, min(1.0, s)) for s in similarity_scores]
+        
+        return similarity_scores
+    
+    def _normalize_scores_relative(self, similarity_scores: List[float]) -> List[float]:
+        """
+        使用相对归一化方法，保留相似度的相对关系，同时适当拉开差距
+        
+        注意：相似度分数已经在_convert_distance_to_similarity中考虑了绝对阈值，
+        这里只需要轻微调整相对关系，让相关结果的相似度更合理。
+        
+        策略：
+        1. 如果最高分数 >= 0.6，说明有相关结果，使用min-max归一化拉开差距
+        2. 如果最高分数 < 0.6，保持原始分数，但确保最低分数不会太低
+        
+        Args:
+            similarity_scores: 相似度分数列表（已经是0-1范围，考虑了绝对阈值）
+        
+        Returns:
+            归一化后的分数列表（0.0-1.0，表示0%-100%），保持相对关系
+        """
+        if not similarity_scores:
+            return []
+        
+        max_score = max(similarity_scores)
+        min_score = min(similarity_scores)
+        
+        # 如果所有分数相同，返回原始分数
+        if max_score == min_score:
+            return similarity_scores
+        
+        # 如果最高分数 >= 0.6，说明有相关结果，使用min-max归一化拉开差距
+        if max_score >= 0.6:
+            # 使用min-max归一化，将范围映射到[0.3, 1.0]
+            # 这样最相似的结果接近1.0，最不相似的结果至少0.3
+            normalized = [
+                0.3 + ((s - min_score) / (max_score - min_score)) * 0.7
+                for s in similarity_scores
+            ]
+            return normalized
+        elif max_score >= 0.4:
+            # 如果最高分数在0.4-0.6之间，轻微拉开差距
+            # 将范围映射到[0.2, max_score * 1.2]，但不超过0.8
+            normalized = [
+                0.2 + ((s - min_score) / (max_score - min_score)) * min(max_score * 0.6, 0.6)
+                for s in similarity_scores
+            ]
+            normalized = [min(s, 0.8) for s in normalized]
+            return normalized
+        else:
+            # 如果最高分数 < 0.4，保持原始分数，但确保最低分数不会太低
+            # 将范围映射到[0.15, max_score * 1.1]，但不超过0.6
+            if max_score > min_score:
+                normalized = [
+                    0.15 + ((s - min_score) / (max_score - min_score)) * min(max_score * 0.45, 0.45)
+                    for s in similarity_scores
+                ]
+                normalized = [min(s, 0.6) for s in normalized]
+                return normalized
+            else:
+                return similarity_scores
+    
     async def search(
         self,
         user_id: int,
@@ -301,65 +437,84 @@ class RAGService:
     ) -> RAGSearchOut:
         """
         语义检索
-        
+
         Args:
             user_id: 用户ID
             query: 查询文本
             top_k: 返回Top-K结果，默认5
-        
+
         Returns:
-            检索结果
+            检索结果，score 字段为 Chroma 返回的原始距离值（距离越小越相似）
         """
         if self.chroma_client is None:
             raise Exception("Chroma客户端未初始化，请检查DashScope配置")
-        
+
         try:
             # 使用Chroma进行相似度检索
-            # 注意：Chroma的filter参数在不同版本中可能有差异
-            # 这里先尝试使用where参数（新版本），如果失败则使用filter参数（旧版本）
-            # 如果都失败，则先检索再过滤
-            results = []
+            # 注意：Chroma返回的是distances（距离），距离越小越相似
+            # Chroma的filter/where参数在不同版本中可能有差异，这里尝试多种方式
+            results: List[Any] = []
             try:
-                # 尝试使用新版本的where参数
+                # 尝试使用新版本的 where 参数
                 results = self.chroma_client.similarity_search_with_score(
                     query,
                     k=top_k * 2,  # 多检索一些，以便过滤后仍有足够结果
                     where={"user_id": user_id},
                 )
-            except:
+            except Exception:
                 try:
-                    # 尝试使用filter参数
+                    # 尝试使用旧版本的 filter 参数
                     results = self.chroma_client.similarity_search_with_score(
                         query,
                         k=top_k * 2,
                         filter={"user_id": user_id},
                     )
-                except:
-                    # 如果都失败，先检索再过滤
+                except Exception:
+                    # 如果都失败，先不带过滤检索，再在应用层按 user_id 过滤
                     results = self.chroma_client.similarity_search_with_score(
                         query,
                         k=top_k * 2,
                     )
-            
-            # 转换为响应格式并过滤用户
-            search_results = []
-            for doc, score in results:
-                # 只返回属于该用户的文档
-                if doc.metadata.get('user_id') == user_id:
-                    search_results.append(RAGSearchResult(
-                        content=doc.page_content,
-                        score=float(score),
-                        metadata=doc.metadata,
-                    ))
-                    # 达到top_k数量后停止
-                    if len(search_results) >= top_k:
-                        break
-            
-            return RAGSearchOut(
-                query=query,
-                results=search_results,
+
+            # 收集属于该用户的结果及其原始距离值
+            candidate_results: List[tuple[Document, float]] = []
+            raw_distances: List[float] = []
+            for doc, raw_score in results:
+                if doc.metadata.get("user_id") == user_id:
+                    distance = float(raw_score)
+                    candidate_results.append((doc, distance))
+                    raw_distances.append(distance)
+
+            if not candidate_results:
+                logger.info(f"[RAG] 检索无结果: user_id={user_id}, query={query}")
+                return RAGSearchOut(query=query, results=[])
+
+            # 记录原始距离值，便于排查
+            logger.info(
+                f"[RAG] 检索原始距离分数 (前{min(top_k, len(raw_distances))}个): "
+                f"{[round(d, 4) for d in raw_distances[:top_k]]}"
             )
-        
+
+            # 直接使用距离值，越小越相似，不做归一化
+            search_results: List[RAGSearchResult] = []
+            for doc, distance in candidate_results:
+                search_results.append(
+                    RAGSearchResult(
+                        content=doc.page_content,
+                        distance=float(distance),  # 距离值
+                        metadata=doc.metadata,
+                    )
+                )
+
+                if len(search_results) >= top_k:
+                    break
+
+            logger.info(
+                f"[RAG] 检索完成: user_id={user_id}, query={query}, 返回{len(search_results)}条结果"
+            )
+
+            return RAGSearchOut(query=query, results=search_results)
+
         except Exception as e:
             logger.error(f"[RAG] 检索失败: {e}")
             import traceback

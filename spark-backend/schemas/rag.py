@@ -53,7 +53,7 @@ class RAGSearchResult(BaseModel):
     """RAG检索结果项"""
     
     content: str = Field(..., description="文档内容")
-    score: float = Field(..., description="相似度分数")
+    distance: float = Field(..., description="距离值（Chroma返回的原始距离，数值越小表示越相似）")
     metadata: dict = Field(default_factory=dict, description="元数据")
 
 
