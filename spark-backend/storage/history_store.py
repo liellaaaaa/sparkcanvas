@@ -214,3 +214,58 @@ def search_conversation_history(
         "items": paginated_items,
     }
 
+
+def delete_conversation_history(
+    cfg: AppConfig,
+    user_id: int,
+    session_id: str,
+    timestamp: str,
+) -> bool:
+    """
+    删除指定的对话历史记录
+    
+    Args:
+        cfg: 应用配置对象
+        user_id: 用户ID
+        session_id: 会话ID
+        timestamp: 时间戳（ISO8601格式），用于唯一标识一条记录
+    
+    Returns:
+        是否删除成功
+    """
+    r = get_redis(cfg.redis_url)
+    if not r:
+        return False
+    
+    deleted = False
+    
+    # 1. 从会话历史记录列表中删除
+    history_key = _conversation_history_key(user_id, session_id)
+    raw_items = r.lrange(history_key, 0, -1)
+    
+    for raw_item in raw_items:
+        try:
+            item = json.loads(raw_item)
+            if item.get("timestamp") == timestamp:
+                # 找到匹配的记录，从列表中删除
+                r.lrem(history_key, 1, raw_item)
+                deleted = True
+                break
+        except Exception:
+            continue
+    
+    # 2. 从搜索索引中删除
+    search_key = f"history:search:user:{user_id}"
+    raw_items = r.lrange(search_key, 0, -1)
+    
+    for raw_item in raw_items:
+        try:
+            item = json.loads(raw_item)
+            if item.get("session_id") == session_id and item.get("timestamp") == timestamp:
+                # 找到匹配的记录，从搜索索引中删除
+                r.lrem(search_key, 1, raw_item)
+                break
+        except Exception:
+            continue
+    
+    return deleted

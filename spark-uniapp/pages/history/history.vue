@@ -34,23 +34,37 @@
       <view v-else>
         <view
           v-for="(item, index) in historyList"
-          :key="index"
+          :key="`${item.session_id}-${item.timestamp}`"
           class="history-item card"
         >
           <view class="item-header">
             <text class="session-tag">会话: {{ item.session_id.slice(0, 8) }}...</text>
-            <text class="time-text">{{ formatTime(item.timestamp) }}</text>
+            <view class="header-right">
+              <text class="time-text">{{ formatTime(item.timestamp) }}</text>
+              <button class="btn-delete" @click="handleDelete(item)">🗑️ 删除</button>
+            </view>
           </view>
           
           <view class="item-content">
             <view class="message-section">
-              <text class="label">💬 用户消息:</text>
+              <text class="label">用户消息：</text>
               <text class="message-text">{{ item.message }}</text>
             </view>
             
             <view class="response-section">
-              <text class="label">🤖 助手回复:</text>
-              <text class="response-text">{{ item.response }}</text>
+              <text class="label">助手回复：</text>
+              <view class="response-container">
+                <text class="response-text" :class="{ 'expanded': isExpanded(item) }">
+                  {{ isExpanded(item) ? item.response : getPreviewText(item.response) }}
+                </text>
+                <text 
+                  v-if="needsExpand(item.response)" 
+                  class="expand-btn" 
+                  @click="toggleExpand(item)"
+                >
+                  {{ isExpanded(item) ? '收起' : '展开' }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
@@ -86,6 +100,7 @@ const pageSize = ref(20)
 const total = ref(0)
 const searchKeyword = ref('')
 const isSearchMode = ref(false)
+const expandedItems = ref({}) // 记录每个item是否展开
 
 // 计算总页数
 const totalPages = ref(0)
@@ -151,6 +166,8 @@ const loadHistory = async (resetPage = false) => {
       historyList.value = response.data.items || []
       total.value = response.data.total || 0
       totalPages.value = Math.ceil(total.value / pageSize.value)
+      // 重置展开状态
+      expandedItems.value = {}
     } else {
       uni.showToast({
         title: response.message || '加载失败',
@@ -195,6 +212,70 @@ const loadPage = (newPage) => {
   }
   page.value = newPage
   loadHistory()
+}
+
+// 获取预览文本（前5行）
+const getPreviewText = (text) => {
+  if (!text) return ''
+  const lines = text.split('\n')
+  if (lines.length <= 5) {
+    return text
+  }
+  return lines.slice(0, 5).join('\n')
+}
+
+// 判断是否需要展开按钮
+const needsExpand = (text) => {
+  if (!text) return false
+  const lines = text.split('\n')
+  return lines.length > 5
+}
+
+// 获取唯一标识
+const getItemKey = (item) => {
+  return `${item.session_id}-${item.timestamp}`
+}
+
+// 判断是否展开
+const isExpanded = (item) => {
+  return expandedItems.value[getItemKey(item)] || false
+}
+
+// 切换展开/收起
+const toggleExpand = (item) => {
+  const key = getItemKey(item)
+  expandedItems.value[key] = !expandedItems.value[key]
+}
+
+// 删除历史记录
+const handleDelete = (item) => {
+  uni.showModal({
+    title: '确认删除',
+    content: '确定要删除这条历史记录吗？此操作不可恢复。',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          await http.deleteHistory({
+            session_id: item.session_id,
+            timestamp: item.timestamp
+          })
+          uni.showToast({
+            title: '删除成功',
+            icon: 'success'
+          })
+          // 重新加载列表
+          await loadHistory()
+        } catch (error) {
+          console.error('删除失败:', error)
+          uni.showToast({
+            title: error.message || '删除失败，请稍后重试',
+            icon: 'none',
+            duration: 2000
+          })
+        }
+      }
+    }
+  })
 }
 
 // 页面加载时获取数据
@@ -310,6 +391,12 @@ onMounted(() => {
   border-bottom: 1rpx solid #f0f0f0;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
 .session-tag {
   font-size: 24rpx;
   color: #007aff;
@@ -351,10 +438,37 @@ onMounted(() => {
   white-space: pre-wrap;
 }
 
+.response-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
 .response-text {
   background: #f8f8f8;
   padding: 20rpx;
   border-radius: 12rpx;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.expand-btn {
+  color: #007aff;
+  font-size: 26rpx;
+  text-align: right;
+  padding: 10rpx 0;
+  cursor: pointer;
+}
+
+.btn-delete {
+  padding: 8rpx 16rpx;
+  background: #ff3b30;
+  color: #ffffff;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+  border: none;
+  cursor: pointer;
 }
 
 .loading,
