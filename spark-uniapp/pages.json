@@ -26,12 +26,6 @@
 			}
 		},
 		{
-			"path": "pages/prompt/prompt",
-			"style": {
-				"navigationBarTitleText": "Prompt管理"
-			}
-		},
-		{
 			"path": "pages/rag/rag",
 			"style": {
 				"navigationBarTitleText": "知识库"
@@ -57,24 +51,18 @@
 				"selectedIconPath": "static/tabbar/workspace-active.png",
 				"text": "工作台"
 			},
-			{
-				"pagePath": "pages/history/history",
-				"iconPath": "static/tabbar/history.png",
-				"selectedIconPath": "static/tabbar/history-active.png",
-				"text": "历史"
-			},
-			{
-				"pagePath": "pages/prompt/prompt",
-				"iconPath": "static/tabbar/prompt.png",
-				"selectedIconPath": "static/tabbar/prompt-active.png",
-				"text": "Prompt"
-			},
-			{
-				"pagePath": "pages/rag/rag",
-				"iconPath": "static/tabbar/rag.png",
-				"selectedIconPath": "static/tabbar/rag-active.png",
-				"text": "知识库"
-			}
+		{
+			"pagePath": "pages/history/history",
+			"iconPath": "static/tabbar/history.png",
+			"selectedIconPath": "static/tabbar/history-active.png",
+			"text": "历史"
+		},
+		{
+			"pagePath": "pages/rag/rag",
+			"iconPath": "static/tabbar/rag.png",
+			"selectedIconPath": "static/tabbar/rag-active.png",
+			"text": "知识库"
+		}
 		]
 	},
 	"uniIdRouter": {}
