@@ -133,7 +133,13 @@ def list_sessions(cfg: AppConfig, page: int = 1, page_size: int = 20) -> Dict[st
     return {"total": total, "page": page, "page_size": page_size, "items": items}
 
 
-def append_message(cfg: AppConfig, session_id: str, role: str, content: str) -> None:
+def append_message(
+    cfg: AppConfig, 
+    session_id: str, 
+    role: str, 
+    content: str,
+    metadata: Optional[Dict[str, Any]] = None
+) -> None:
     """
     向会话添加消息
     
@@ -142,6 +148,7 @@ def append_message(cfg: AppConfig, session_id: str, role: str, content: str) -> 
         session_id: 会话ID
         role: 消息角色（user/assistant）
         content: 消息内容
+        metadata: 可选的元数据字典（如material_source、platform等）
     """
     r = get_redis(cfg.redis_url)
     if not r:
@@ -150,8 +157,9 @@ def append_message(cfg: AppConfig, session_id: str, role: str, content: str) -> 
     if not raw:
         return
     data = json.loads(raw)
-    data.setdefault("messages", []).append(
-        {"role": role, "content": content, "timestamp": _now_iso()}
-    )
+    message = {"role": role, "content": content, "timestamp": _now_iso()}
+    if metadata:
+        message.update(metadata)
+    data.setdefault("messages", []).append(message)
     r.setex(_session_key(session_id), SESSION_TTL_SECONDS, json.dumps(data, ensure_ascii=False))
 
