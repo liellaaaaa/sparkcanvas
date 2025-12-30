@@ -57,13 +57,21 @@
                 <text class="response-text" :class="{ 'expanded': isExpanded(item) }">
                   {{ isExpanded(item) ? item.response : getPreviewText(item.response) }}
                 </text>
-                <text 
-                  v-if="needsExpand(item.response)" 
-                  class="expand-btn" 
-                  @click="toggleExpand(item)"
-                >
-                  {{ isExpanded(item) ? '收起' : '展开' }}
-                </text>
+                <view class="action-buttons">
+                  <text 
+                    class="action-btn copy-btn" 
+                    @click="handleCopy(item)"
+                  >
+                    复制
+                  </text>
+                  <text 
+                    v-if="needsExpand(item.response)" 
+                    class="action-btn expand-btn" 
+                    @click="toggleExpand(item)"
+                  >
+                    {{ isExpanded(item) ? '收起' : '展开' }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
@@ -245,6 +253,36 @@ const isExpanded = (item) => {
 const toggleExpand = (item) => {
   const key = getItemKey(item)
   expandedItems.value[key] = !expandedItems.value[key]
+}
+
+// 一键复制
+const handleCopy = (item) => {
+  const content = item.response || ''
+  if (!content) {
+    uni.showToast({
+      title: '内容为空，无法复制',
+      icon: 'none'
+    })
+    return
+  }
+  
+  uni.setClipboardData({
+    data: content,
+    success: () => {
+      uni.showToast({
+        title: '复制成功',
+        icon: 'success',
+        duration: 1500
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败:', err)
+      uni.showToast({
+        title: '复制失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
 }
 
 // 删除历史记录
@@ -453,11 +491,29 @@ onMounted(() => {
   line-height: 1.6;
 }
 
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 20rpx;
+  padding: 10rpx 0;
+}
+
+.action-btn {
+  color: #007aff;
+  font-size: 26rpx;
+  cursor: pointer;
+}
+
 .expand-btn {
   color: #007aff;
   font-size: 26rpx;
-  text-align: right;
-  padding: 10rpx 0;
+  cursor: pointer;
+}
+
+.copy-btn {
+  color: #007aff;
+  font-size: 26rpx;
   cursor: pointer;
 }
 
