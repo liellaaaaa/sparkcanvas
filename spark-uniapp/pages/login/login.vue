@@ -83,6 +83,14 @@ const handleLogin = async () => {
   uni.showLoading({ title: '登录中...' })
   
   try {
+    // 先测试连接（可选，用于调试）
+    // try {
+    //   await http.testConnection()
+    //   console.log('后端连接正常')
+    // } catch (e) {
+    //   console.warn('后端连接测试失败:', e)
+    // }
+    
     // 调用登录API
     const result = await http.login({
       email: formData.email.trim(),
@@ -103,11 +111,24 @@ const handleLogin = async () => {
     }, 1500)
   } catch (e) {
     console.error('登录失败:', e)
-    uni.showToast({
-      title: e.message || '登录失败，请检查邮箱和密码',
-      icon: 'none',
-      duration: 2000
-    })
+    let errorMessage = e.message || '登录失败，请检查邮箱和密码'
+    
+    // 如果是超时或连接错误，提供更详细的提示
+    if (errorMessage.includes('超时') || errorMessage.includes('连接')) {
+      // 显示模态框，提供更详细的错误信息
+      uni.showModal({
+        title: '连接失败',
+        content: errorMessage + '\n\n请检查：\n1. 后端服务是否已启动（运行 python spark-backend/main.py）\n2. 访问 http://localhost:8000/health 测试后端是否正常\n3. 检查后端日志是否有错误信息',
+        showCancel: false,
+        confirmText: '我知道了'
+      })
+    } else {
+      uni.showToast({
+        title: errorMessage,
+        icon: 'none',
+        duration: 3000
+      })
+    }
   } finally {
     loading.value = false
     uni.hideLoading()

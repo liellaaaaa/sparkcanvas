@@ -21,8 +21,8 @@ class WorkspaceSendMessageIn(BaseModel):
 
     session_id: str = Field(..., description="会话ID")
     message: str = Field(..., description="用户输入的消息内容")
-    material_source: Literal["online", "rag", "upload"] = Field(
-        "online", description='素材源："online"(联网)、"rag"(知识库)、"upload"(本地上传)'
+    material_source: Literal["online", "rag"] = Field(
+        "online", description='素材源："online"(联网)、"rag"(知识库)'
     )
     platform: Literal["xiaohongshu", "douyin"] = Field(
         ..., description='目标平台："xiaohongshu" 或 "douyin"'
@@ -54,15 +54,6 @@ class WorkspaceSessionInfoOut(BaseModel):
     expires_at: str
     message_count: int
     last_message_time: Optional[str] = None
-
-
-class WorkspaceUploadMaterialOut(BaseModel):
-    """上传素材响应"""
-
-    file_id: str
-    file_name: str
-    file_size: int
-    uploaded_at: str
 
 
 class WorkspaceRegenerateIn(BaseModel):

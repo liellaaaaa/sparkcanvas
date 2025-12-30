@@ -86,19 +86,64 @@ const request = (options) => {
       method: options.method || 'GET',
       data: options.data,
       header: options.header || {},
-      timeout: config.TIMEOUT
+      timeout: options.timeout || config.TIMEOUT // 支持每个请求单独设置超时时间
+    })
+    
+    // 对于 POST/PUT/DELETE 请求，确保数据正确序列化
+    // uni.request 在 Content-Type 为 application/json 时会自动序列化，但我们需要确保数据格式正确
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(requestConfig.method.toUpperCase()) && requestConfig.data) {
+      // 确保 data 是对象格式，uni.request 会自动序列化为 JSON
+      if (typeof requestConfig.data === 'string') {
+        try {
+          requestConfig.data = JSON.parse(requestConfig.data)
+        } catch (e) {
+          // 如果已经是字符串且无法解析，保持原样
+        }
+      }
+    }
+    
+    // 添加调试日志
+    console.log('发送请求:', {
+      url: requestConfig.url,
+      method: requestConfig.method,
+      data: requestConfig.data,
+      header: requestConfig.header,
+      timeout: requestConfig.timeout
     })
     
     uni.request({
-      ...requestConfig,
+      url: requestConfig.url,
+      method: requestConfig.method,
+      data: requestConfig.data,
+      header: requestConfig.header,
+      timeout: requestConfig.timeout,
+      dataType: 'json',
       success: (res) => {
+        console.log('请求成功:', {
+          statusCode: res.statusCode,
+          data: res.data
+        })
         responseInterceptor(res)
           .then(resolve)
           .catch(reject)
       },
       fail: (err) => {
         console.error('请求失败:', err)
-        reject(new Error(err.errMsg || '网络请求失败，请检查网络连接'))
+        console.error('请求配置:', {
+          url: requestConfig.url,
+          method: requestConfig.method,
+          timeout: requestConfig.timeout
+        })
+        let errorMsg = err.errMsg || '网络请求失败'
+        
+        // 提供更友好的错误提示
+        if (errorMsg.includes('timeout')) {
+          errorMsg = `请求超时（${requestConfig.timeout}ms），请检查：\n1. 后端服务是否已启动（访问 http://localhost:8000/health 测试）\n2. 后端服务是否正常运行\n3. 数据库连接是否正常\n4. 检查浏览器控制台是否有CORS错误`
+        } else if (errorMsg.includes('fail') || errorMsg.includes('connect')) {
+          errorMsg = `无法连接到服务器（${requestConfig.url}），请检查：\n1. 后端服务是否已启动\n2. 后端服务是否监听在正确的地址和端口\n3. 防火墙是否阻止了连接\n4. 检查浏览器控制台是否有CORS错误`
+        }
+        
+        reject(new Error(errorMsg))
       }
     })
   })
@@ -106,6 +151,13 @@ const request = (options) => {
 
 // API方法封装
 const http = {
+  // 测试连接
+  testConnection: () => request({ 
+    url: '/health', 
+    method: 'GET',
+    timeout: 5000 // 健康检查5秒超时即可
+  }),
+  
   // 认证相关
   // 发送验证码：GET /auth/code?email=xxx
   sendCode: (email) => request({ 
@@ -124,7 +176,8 @@ const http = {
   login: (data) => request({ 
     url: '/auth/login', 
     method: 'POST', 
-    data 
+    data,
+    timeout: 15000 // 登录接口15秒超时，给数据库查询等操作留出时间
   }),
   
   logout: () => {
@@ -135,10 +188,10 @@ const http = {
   },
   
   // 工作台相关
-  createSession: () => request({ url: '/api/v1/workspace/create-session', method: 'POST' }),
-  sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data }),
-  getSession: (sessionId) => request({ url: `/api/v1/workspace/session/${sessionId}`, method: 'GET' }),
-  regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data }),
+  createSession: () => request({ url: '/api/v1/workspace/create-session', method: 'POST', timeout: 10000 }),
+  sendMessage: (data) => request({ url: '/api/v1/workspace/send-message', method: 'POST', data, timeout: 60000 }), // LLM 生成需要更长时间
+  getSession: (sessionId) => request({ url: `/api/v1/workspace/session/${sessionId}`, method: 'GET', timeout: 10000 }),
+  regenerate: (data) => request({ url: '/api/v1/workspace/regenerate', method: 'POST', data, timeout: 60000 }), // LLM 生成需要更长时间
   
   // 历史记录相关
   getConversations: (params) => {
