@@ -6,6 +6,13 @@
       "file_size": 604552,
       "chunks_count": 3,
       "uploaded_at": "2025-12-25T05:53:41.171897Z"
+    },
+    "06eb14a1-d90b-4fd4-ac7b-beaebdf0841b": {
+      "document_id": "06eb14a1-d90b-4fd4-ac7b-beaebdf0841b",
+      "file_name": "test.txt",
+      "file_size": 667,
+      "chunks_count": 1,
+      "uploaded_at": "2025-12-30T00:24:02.987537Z"
     }
   }
 }

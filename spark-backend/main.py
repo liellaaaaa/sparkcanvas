@@ -8,7 +8,6 @@ from core.logger import logger
 from routers.auth import router as auth_router
 from routers.workspace import router as workspace_router
 from routers.history import router as history_router
-from routers.prompt import router as prompt_router
 from routers.rag import router as rag_router
 
 # 加载配置
@@ -41,11 +40,11 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(workspace_router)
 app.include_router(history_router)
-app.include_router(prompt_router)
 app.include_router(rag_router)
 
 
 @app.get("/")
+
 async def root():
     """根路径"""
     return {"message": "Welcome to SparkCanvas API"}

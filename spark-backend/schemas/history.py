@@ -24,3 +24,9 @@ class ConversationHistoryListOut(BaseModel):
     page_size: int = Field(..., description="每页数量")
     items: List[ConversationHistoryItem] = Field(..., description="历史记录列表")
 
+
+class ConversationHistoryDeleteIn(BaseModel):
+    """删除历史记录请求"""
+    
+    session_id: str = Field(..., description="会话ID")
+    timestamp: str = Field(..., description="时间戳（ISO8601格式）")

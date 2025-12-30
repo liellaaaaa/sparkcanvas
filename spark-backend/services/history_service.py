@@ -14,6 +14,7 @@ from core.logger import logger
 from schemas.history import (
     ConversationHistoryItem,
     ConversationHistoryListOut,
+    ConversationHistoryDeleteIn,
 )
 from storage import history_store
 from utils.response import APIResponse, success_response
@@ -133,3 +134,39 @@ class HistoryService:
         )
         
         return success_response(out)
+
+    async def delete_conversation_history(
+        self,
+        user_id: int,
+        data: ConversationHistoryDeleteIn,
+    ) -> APIResponse:
+        """
+        删除指定的对话历史记录
+        
+        Args:
+            user_id: 用户ID
+            data: 删除请求数据（包含session_id和timestamp）
+        
+        Returns:
+            APIResponse对象
+        """
+        # 参数校验
+        if not data.session_id or not data.timestamp:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="session_id和timestamp不能为空")
+        
+        # 从存储层删除
+        deleted = history_store.delete_conversation_history(
+            self.cfg, user_id, data.session_id, data.timestamp
+        )
+        
+        if not deleted:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="历史记录不存在或已被删除")
+        
+        logger.info(
+            f"[History] user_id={user_id} session_id={data.session_id} "
+            f"timestamp={data.timestamp} 删除历史记录成功"
+        )
+        
+        return success_response(None)
