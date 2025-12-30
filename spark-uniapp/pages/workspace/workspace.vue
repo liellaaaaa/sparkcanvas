@@ -103,7 +103,16 @@
       <view v-if="hasResult" class="result-card">
         <view class="result-header">
           <text class="result-label">生成结果</text>
-          <text class="result-status">{{ resultStatus }}</text>
+          <view class="result-actions">
+            <text v-if="resultStatus === 'completed'" class="result-status">生成完毕</text>
+            <button
+              v-if="resultStatus === 'completed'"
+              class="btn-copy"
+              @click="handleCopyResult"
+            >
+              复制
+            </button>
+          </view>
         </view>
         <view class="result-title">{{ resultTitle }}</view>
         <view class="result-body">
@@ -356,6 +365,43 @@ const handleRegenerate = async () => {
   }
 }
 
+// ========== 复制结果 ==========
+const handleCopyResult = () => {
+  let content = ''
+  if (resultTitle.value) {
+    content += resultTitle.value + '\n\n'
+  }
+  if (resultBody.value) {
+    content += resultBody.value
+  }
+  
+  if (!content.trim()) {
+    uni.showToast({
+      title: '内容为空，无法复制',
+      icon: 'none'
+    })
+    return
+  }
+  
+  uni.setClipboardData({
+    data: content,
+    success: () => {
+      uni.showToast({
+        title: '复制成功',
+        icon: 'success',
+        duration: 1500
+      })
+    },
+    fail: (err) => {
+      console.error('复制失败:', err)
+      uni.showToast({
+        title: '复制失败，请稍后重试',
+        icon: 'none'
+      })
+    }
+  })
+}
+
 // ========== 生命周期 ==========
 onLoad(async () => {
   await initSession()
@@ -584,12 +630,39 @@ onLoad(async () => {
   color: #666;
 }
 
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .result-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 22rpx;
   color: #52c41a;
   background-color: rgba(82, 196, 26, 0.1);
-  padding: 4rpx 16rpx;
+  padding: 6rpx 16rpx;
   border-radius: 999rpx;
+  height: 40rpx;
+  box-sizing: border-box;
+}
+
+.btn-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #52c41a;
+  background-color: rgba(82, 196, 26, 0.1);
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  border: none;
+  cursor: pointer;
+  height: 40rpx;
+  box-sizing: border-box;
+  font-weight: normal;
 }
 
 .result-title {
