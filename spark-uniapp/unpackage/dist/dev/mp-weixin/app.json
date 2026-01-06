@@ -1,0 +1,44 @@
+{
+  "pages": [
+    "pages/workspace/workspace",
+    "pages/login/login",
+    "pages/register/register",
+    "pages/history/history",
+    "pages/rag/rag"
+  ],
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "SparkCanvas",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F8F8F8",
+    "navigationStyle": "default"
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#3c9cff",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/workspace/workspace",
+        "iconPath": "static/tabbar/workspace.png",
+        "selectedIconPath": "static/tabbar/workspace-active.png",
+        "text": "工作台"
+      },
+      {
+        "pagePath": "pages/history/history",
+        "iconPath": "static/tabbar/history.png",
+        "selectedIconPath": "static/tabbar/history-active.png",
+        "text": "历史"
+      },
+      {
+        "pagePath": "pages/rag/rag",
+        "iconPath": "static/tabbar/rag.png",
+        "selectedIconPath": "static/tabbar/rag-active.png",
+        "text": "知识库"
+      }
+    ]
+  },
+  "permission": {},
+  "usingComponents": {}
+}
