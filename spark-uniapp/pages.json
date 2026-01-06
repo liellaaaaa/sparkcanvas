@@ -30,6 +30,12 @@
 			"style": {
 				"navigationBarTitleText": "知识库"
 			}
+		},
+		{
+			"path": "pages/user/user",
+			"style": {
+				"navigationBarTitleText": "用户中心"
+			}
 		}
 	],
 	"globalStyle": {
@@ -62,6 +68,12 @@
 			"iconPath": "static/tabbar/rag.png",
 			"selectedIconPath": "static/tabbar/rag-active.png",
 			"text": "知识库"
+		},
+		{
+			"pagePath": "pages/user/user",
+			"iconPath": "static/tabbar/prompt.png",
+			"selectedIconPath": "static/tabbar/prompt-active.png",
+			"text": "用户中心"
 		}
 		]
 	},
