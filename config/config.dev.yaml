@@ -4,7 +4,7 @@ app:
   port: 8000
 
 mysql:
-  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+  url: "mysql+aiomysql://root:123456@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
 
 # 阿里云通义千问
 dashscope:

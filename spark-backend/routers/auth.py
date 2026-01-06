@@ -47,21 +47,20 @@ async def get_email_code(
         subtype=MessageType.plain
     )
     
-    # 3. 发送邮件
+    # 3. 发送邮件并存储验证码到数据库
+    email_code_repo = EmailCodeRepository(session=session)
     try:
         await mail.send_message(message)
     except SMTPResponseException as e:
         if e.code == -1 and b"\\x00\\x00\\x00" in str(e).encode():
             print("⚠️ 忽略 QQ 邮箱 SMTP 关闭阶段的非标准响应（邮件已成功发送）")
-            # 将邮箱和验证码存储到数据库中
-            email_code_repo = EmailCodeRepository(session=session)
-            await email_code_repo.create(str(email), code)
         else:
+            await session.rollback()  # 发生错误时回滚
             raise HTTPException(500, detail="邮件发送失败！")
     
     # 4. 存储验证码到数据库
-    email_code_repo = EmailCodeRepository(session=session)
     await email_code_repo.create(str(email), code)
+    await session.commit()  # 提交事务
     
     return ResponseOut()
 
@@ -83,12 +82,17 @@ async def register(
     Returns:
         操作结果
     """
-    user_repo = UserRepository(session=session)
-    email_code_repo = EmailCodeRepository(session=session)
-    auth_service = AuthService(user_repo, email_code_repo, auth_handler)
-    
-    await auth_service.register(data)
-    return ResponseOut()
+    try:
+        user_repo = UserRepository(session=session)
+        email_code_repo = EmailCodeRepository(session=session)
+        auth_service = AuthService(user_repo, email_code_repo, auth_handler)
+        
+        await auth_service.register(data)
+        await session.commit()  # 统一提交事务
+        return ResponseOut()
+    except Exception as e:
+        await session.rollback()  # 发生错误时回滚
+        raise
 
 
 @router.post('/login', response_model=LoginOut)

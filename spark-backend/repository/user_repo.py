@@ -52,10 +52,10 @@ class UserRepository:
         Returns:
             创建的用户对象
         """
-        async with self.session.begin():
-            user = User(**user_schema.model_dump())
-            self.session.add(user)
-            return user
+        user = User(**user_schema.model_dump())
+        self.session.add(user)
+        await self.session.flush()  # 刷新以获取生成的ID，但不提交事务
+        return user
 
 
 class EmailCodeRepository:
@@ -75,10 +75,10 @@ class EmailCodeRepository:
         Returns:
             创建的验证码对象
         """
-        async with self.session.begin():
-            email_code = EmailCode(email=email, code=code)
-            self.session.add(email_code)
-            return email_code
+        email_code = EmailCode(email=email, code=code)
+        self.session.add(email_code)
+        await self.session.flush()  # 刷新以获取生成的ID，但不提交事务
+        return email_code
 
     async def check_email_code(self, email: str, code: str) -> bool:
         """
