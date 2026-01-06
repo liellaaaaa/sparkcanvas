@@ -122,6 +122,7 @@ class RAGService:
         
         # 生成文档ID
         document_id = str(uuid.uuid4())
+        print(f"document_id: {document_id}")
         
         # 保存临时文件
         file_extension = Path(file_name).suffix
