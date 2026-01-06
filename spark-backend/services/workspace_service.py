@@ -317,33 +317,68 @@ class WorkspaceService:
         # 设置 API Key
         dashscope.api_key = self.cfg.dashscope_api_key
 
-        try:
-            response = Generation.call(
-                model=self.cfg.dashscope_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=self.cfg.dashscope_temperature,
-                result_format="message",
-            )
+        # 添加重试机制，最多重试3次
+        max_retries = 3
+        retry_count = 0
+        last_error = None
 
-            if response.status_code == 200:
-                content_text = response.output.choices[0].message.content
-                # 解析标题和正文
-                lines = content_text.strip().split("\n", 1)
-                title = lines[0].strip().lstrip("#").strip() if lines else f"[{platform_name}] 生成内容"
-                body = lines[1].strip() if len(lines) > 1 else content_text
+        while retry_count < max_retries:
+            try:
+                logger.info(f"[Workspace] 调用通义千问 API (尝试 {retry_count + 1}/{max_retries})")
+                response = Generation.call(
+                    model=self.cfg.dashscope_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=self.cfg.dashscope_temperature,
+                    result_format="message",
+                )
+
+                if response.status_code == 200:
+                    content_text = response.output.choices[0].message.content
+                    # 解析标题和正文
+                    lines = content_text.strip().split("\n", 1)
+                    title = lines[0].strip().lstrip("#").strip() if lines else f"[{platform_name}] 生成内容"
+                    body = lines[1].strip() if len(lines) > 1 else content_text
+                    
+                    logger.info(f"[Workspace] 通义千问生成成功，model={self.cfg.dashscope_model}")
+                    return WorkspaceContent(title=title, body=body, image_url=None)
+                else:
+                    error_msg = f"API错误: {response.code} - {response.message}"
+                    logger.error(f"[Workspace] 通义千问调用失败: {error_msg}")
+                    # API 返回错误，不重试
+                    return self._generate_fallback_content(payload, is_regenerate, error_msg)
+
+            except Exception as e:
+                last_error = e
+                retry_count += 1
+                error_type = type(e).__name__
+                logger.warning(
+                    f"[Workspace] 通义千问调用失败 ({error_type}: {e}), "
+                    f"重试 {retry_count}/{max_retries}"
+                )
                 
-                logger.info(f"[Workspace] 通义千问生成成功，model={self.cfg.dashscope_model}")
-                return WorkspaceContent(title=title, body=body, image_url=None)
-            else:
-                logger.error(f"[Workspace] 通义千问调用失败: {response.code} - {response.message}")
-                return self._generate_fallback_content(payload, is_regenerate, f"API错误: {response.message}")
-
-        except Exception as e:
-            logger.error(f"[Workspace] 通义千问异常: {e}")
-            return self._generate_fallback_content(payload, is_regenerate, str(e))
+                # 如果还有重试机会，等待一小段时间后重试
+                if retry_count < max_retries:
+                    import time
+                    time.sleep(1)  # 等待1秒后重试
+                    continue
+        
+        # 所有重试都失败
+        logger.error(f"[Workspace] 通义千问异常，已重试{max_retries}次均失败: {last_error}")
+        error_detail = (
+            f"网络连接失败，已尝试{max_retries}次。\n"
+            f"错误类型: {type(last_error).__name__}\n"
+            f"错误详情: {str(last_error)}\n\n"
+            f"可能的原因:\n"
+            f"1. 网络不稳定，请检查网络连接\n"
+            f"2. API密钥未配置或无效\n"
+            f"3. 防火墙阻止了连接\n"
+            f"4. 阿里云服务暂时不可用\n\n"
+            f"请稍后重试或联系管理员。"
+        )
+        return self._generate_fallback_content(payload, is_regenerate, error_detail)
 
     def _generate_fallback_content(
         self, payload: WorkspaceSendMessageIn, is_regenerate: bool, error_msg: str

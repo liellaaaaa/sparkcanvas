@@ -1,10 +1,13 @@
 # SparkCanvas 开发环境配置文件
 app:
-  host: "127.0.0.1"
+  host: "0.0.0.0"
   port: 8000
 
 mysql:
-  url: "mysql+aiomysql://root:1234@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+  url: "mysql+aiomysql://sparkcanvas:maJzT6jpwi2R8w3P@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
+  
+mysql:
+  url: "mysql+aiomysql://root:123456@127.0.0.1:3306/sparkcanvas?charset=utf8mb4"
 
 # 阿里云通义千问
 dashscope:

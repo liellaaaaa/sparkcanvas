@@ -70,14 +70,16 @@ def load_config(env: str | None = None) -> AppConfig:
         AppConfig: 应用配置对象
     """
     # 1) 加载 .env 文件
-    env_file = Path(__file__).resolve().parents[2] / "config" / ".env"
+    # 从 core/config.py 向上两级到 spark-backend，然后进入 config 目录
+    env_file = Path(__file__).resolve().parents[1] / "config" / ".env"
     if env_file.exists():
         load_dotenv(env_file)
     else:
         load_dotenv()
 
     # 2) 加载 YAML 配置文件
-    config_dir = Path(__file__).resolve().parents[2] / "config"
+    # 从 core/config.py 向上两级到 spark-backend，然后进入 config 目录
+    config_dir = Path(__file__).resolve().parents[1] / "config"
     base_yaml = config_dir / "config.yaml"
     env = env or os.getenv("APP_ENV", "dev")
     env_yaml = config_dir / f"config.{env}.yaml"
@@ -86,9 +88,24 @@ def load_config(env: str | None = None) -> AppConfig:
     if base_yaml.exists():
         with base_yaml.open("r", encoding="utf-8") as f:
             data = _merge_dict(data, yaml.safe_load(f) or {})
+    else:
+        # 如果基础配置文件不存在，尝试从 sparkcanvas/config 目录读取（兼容旧路径）
+        fallback_config_dir = Path(__file__).resolve().parents[2] / "config"
+        fallback_base_yaml = fallback_config_dir / "config.yaml"
+        if fallback_base_yaml.exists():
+            with fallback_base_yaml.open("r", encoding="utf-8") as f:
+                data = _merge_dict(data, yaml.safe_load(f) or {})
+    
     if env_yaml.exists():
         with env_yaml.open("r", encoding="utf-8") as f:
             data = _merge_dict(data, yaml.safe_load(f) or {})
+    else:
+        # 如果环境配置文件不存在，尝试从 sparkcanvas/config 目录读取（兼容旧路径）
+        fallback_config_dir = Path(__file__).resolve().parents[2] / "config"
+        fallback_env_yaml = fallback_config_dir / f"config.{env}.yaml"
+        if fallback_env_yaml.exists():
+            with fallback_env_yaml.open("r", encoding="utf-8") as f:
+                data = _merge_dict(data, yaml.safe_load(f) or {})
 
     # 3) 环境变量覆盖（优先级最高）
     cfg = AppConfig(
