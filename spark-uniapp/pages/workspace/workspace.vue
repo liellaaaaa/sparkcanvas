@@ -76,11 +76,17 @@
         </button>
         <button
           class="btn btn-primary"
+          :loading="loading"
           :disabled="loading || !inputText.trim()"
           @click="handleGenerate"
         >
-           生成内容
+          {{ loading ? '生成中，请稍候...' : '生成内容' }}
         </button>
+      </view>
+
+      <!-- 加载状态提示 -->
+      <view v-if="loading || regenerating" class="loading-hint">
+        <text>{{ loading ? '正在为你生成内容，请稍候~' : '正在为你重新生成内容，请稍候~' }}</text>
       </view>
 
       <!-- 生成结果展示 -->
@@ -463,6 +469,13 @@ onLoad(async () => {
   display: flex;
   justify-content: flex-end;
   gap: 16rpx;
+}
+
+.loading-hint {
+  margin-top: 16rpx;
+  text-align: right;
+  font-size: 24rpx;
+  color: #999;
 }
 
 .btn {
