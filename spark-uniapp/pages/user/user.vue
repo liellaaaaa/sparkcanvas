@@ -1,9 +1,19 @@
 <template>
-  <view class="user-page">
-    <view class="card">
-      <view class="header">
+  <view class="workspace-page">
+    <view class="bg-decoration"></view>
+
+    <view class="header">
+      <view class="title-wrapper">
         <text class="title">用户中心</text>
-        <text class="subtitle">查看账户信息与会话状态</text>
+        <view class="badge">USER</view>
+      </view>
+      <text class="subtitle">查看账户信息与会话状态</text>
+    </view>
+
+    <view class="card">
+      <view class="card-title">
+        <uni-icons type="person" size="20" color="#3c9cff"></uni-icons>
+        <text>账户信息</text>
       </view>
 
       <view class="info-row">
@@ -21,7 +31,10 @@
         <text class="value">{{ token ? '已登录' : '未登录' }}</text>
       </view>
 
-      <button class="btn logout-btn" @click="handleLogout">退出登录</button>
+      <button class="main-generate-btn logout-btn" @click="handleLogout">
+        <uni-icons type="closeempty" size="18" color="#fff"></uni-icons>
+        <text>退出登录</text>
+      </button>
     </view>
   </view>
 </template>
@@ -59,72 +72,85 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.user-page {
+.workspace-page {
   min-height: 100vh;
-  padding: 32rpx;
-  background: linear-gradient(135deg, #f5f7fa 0%, #e9effd 100%);
-  box-sizing: border-box;
+  padding: 40rpx 30rpx;
+  background-color: #fcfdfe;
+  position: relative;
 }
+
+.bg-decoration {
+  position: absolute;
+  top: -150rpx; right: -100rpx; width: 500rpx; height: 500rpx;
+  background: radial-gradient(circle, rgba(60, 156, 255, 0.08) 0%, transparent 70%);
+}
+
+.header { margin-bottom: 40rpx; }
+.title-wrapper { display: flex; align-items: center; gap: 12rpx; }
+.title { font-size: 52rpx; font-weight: 800; color: #1a1a1a; }
+.badge { background: #3c9cff; color: #fff; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 6rpx; }
+.subtitle { font-size: 26rpx; color: #999; margin-top: 12rpx; display: block; }
 
 .card {
-  background: #fff;
-  border-radius: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
-  padding: 32rpx;
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 40rpx;
+  box-shadow: 0 15rpx 40rpx rgba(160, 180, 210, 0.1);
+  border: 1rpx solid rgba(240, 244, 250, 0.8);
 }
 
-.header {
-  margin-bottom: 24rpx;
-}
-
-.title {
-  font-size: 36rpx;
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 30rpx;
   font-weight: 700;
   color: #333;
-  display: block;
-  margin-bottom: 8rpx;
-}
-
-.subtitle {
-  font-size: 26rpx;
-  color: #888;
+  margin-bottom: 40rpx;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 2rpx solid #f5f5f5;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f0f3f8;
 }
 
-.info-row:last-child {
+.info-row:last-of-type {
   border-bottom: none;
 }
 
 .label {
   font-size: 28rpx;
-  color: #666;
+  font-weight: 600;
+  color: #444;
 }
 
 .value {
   font-size: 28rpx;
-  color: #333;
+  color: #666;
 }
 
-.btn {
-  width: 100%;
-  height: 88rpx;
-  line-height: 88rpx;
-  border-radius: 16rpx;
-  border: none;
+.main-generate-btn {
+  margin-top: 50rpx;
+  height: 100rpx;
+  line-height: 100rpx;
+  color: #fff !important;
   font-size: 30rpx;
-  margin-top: 32rpx;
+  font-weight: 700;
+  border-radius: 28rpx;
+  border: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  transition: all 0.3s;
 }
 
 .logout-btn {
-  background: #ffecec;
-  color: #e53935;
+  background: linear-gradient(135deg, #ff4d4f 0%, #e53935 100%);
 }
 </style>
 
