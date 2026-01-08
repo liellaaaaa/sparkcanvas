@@ -27,6 +27,9 @@ class WorkspaceSendMessageIn(BaseModel):
     platform: Literal["xiaohongshu", "douyin"] = Field(
         ..., description='目标平台："xiaohongshu" 或 "douyin"'
     )
+    direction: Optional[str] = Field(
+        None, description="创作方向，如：美食、宠物、影视剧、科普、旅行、美妆、穿搭等"
+    )
 
 
 class WorkspaceContent(BaseModel):
