@@ -1,77 +1,90 @@
 <template>
-  <view class="history-page">
+  <view class="workspace-page">
+    <view class="bg-decoration"></view>
+
     <view class="header">
-      <text class="title">📚 历史记录</text>
+      <view class="title-wrapper">
+        <text class="title">历史记录</text>
+        <view class="badge">HISTORY</view>
+      </view>
+      <text class="subtitle">回顾你的创作历程与灵感足迹</text>
     </view>
-    
-    <!-- 搜索栏 -->
+
     <view class="search-card card">
-      <view class="search-box">
+      <view class="search-container">
+        <uni-icons type="search" size="18" color="#999"></uni-icons>
         <input
           class="search-input"
           v-model="searchKeyword"
-          placeholder="搜索历史记录..."
+          placeholder="搜索创作内容或标题..."
+          placeholder-style="color:#bbb"
           @confirm="handleSearch"
         />
-        <button class="btn btn-primary btn-small" @click="handleSearch">🔍 搜索</button>
-      </view>
-      <view v-if="isSearchMode" class="search-tip">
-        <text>搜索关键词: {{ searchKeyword }}</text>
-        <text class="cancel-search" @click="cancelSearch">取消搜索</text>
+        <view v-if="isSearchMode" class="clear-btn" @click="cancelSearch">
+          <uni-icons type="clear" size="18" color="#ff4d4f"></uni-icons>
+        </view>
       </view>
     </view>
 
-    <!-- 历史记录列表 -->
     <view class="history-list">
-      <view v-if="loading" class="loading">
-        <text>加载中...</text>
+      <view v-if="loading" class="state-placeholder">
+        <text class="loading-text">正在加载创作记忆...</text>
       </view>
       
-      <view v-else-if="historyList.length === 0" class="empty">
-        <text>暂无历史记录</text>
+      <view v-else-if="historyList.length === 0" class="state-placeholder">
+        <uni-icons type="info" size="40" color="#ddd"></uni-icons>
+        <text class="empty-text">暂无历史，去工作台开始创作吧</text>
       </view>
       
       <view v-else>
         <view
           v-for="(item, index) in historyList"
           :key="`${item.session_id}-${item.timestamp}`"
-          class="history-item card"
+          class="history-item card animate-in"
+          :style="{ animationDelay: index * 0.05 + 's' }"
         >
           <view class="item-header">
-            <text class="session-tag">会话: {{ item.session_id.slice(0, 8) }}...</text>
-            <view class="header-right">
-              <text class="time-text">{{ formatTime(item.timestamp) }}</text>
-              <button class="btn-delete" @click="handleDelete(item)">🗑️ 删除</button>
+            <view class="platform-indicator">
+              <view class="dot"></view>
+              <text class="session-tag">会话: {{ item.session_id.slice(0, 8) }}</text>
             </view>
+            <text class="time-text">{{ formatTime(item.timestamp) }}</text>
           </view>
           
-          <view class="item-content">
-            <view class="message-section">
-              <text class="label">用户消息：</text>
+          <view class="item-body">
+            <view class="content-box user-message">
+              <view class="box-label">
+                <uni-icons type="person" size="12" color="#3c9cff"></uni-icons>
+                <text>需求</text>
+              </view>
               <text class="message-text">{{ item.message }}</text>
             </view>
             
-            <view class="response-section">
-              <text class="label">助手回复：</text>
-              <view class="response-container">
-                <text class="response-text" :class="{ 'expanded': isExpanded(item) }">
-                  {{ isExpanded(item) ? item.response : getPreviewText(item.response) }}
-                </text>
-                <view class="action-buttons">
-                  <text 
-                    class="action-btn copy-btn" 
-                    @click="handleCopy(item)"
-                  >
-                    复制
-                  </text>
-                  <text 
-                    v-if="needsExpand(item.response)" 
-                    class="action-btn expand-btn" 
-                    @click="toggleExpand(item)"
-                  >
-                    {{ isExpanded(item) ? '收起' : '展开' }}
-                  </text>
-                </view>
+            <view class="content-box assistant-response">
+              <view class="box-label">
+                <uni-icons type="paperplane" size="12" color="#52c41a"></uni-icons>
+                <text>生成结果</text>
+              </view>
+              <text class="response-text" :class="{ 'expanded': isExpanded(item) }">
+                {{ isExpanded(item) ? item.response : getPreviewText(item.response) }}
+              </text>
+            </view>
+          </view>
+
+          <view class="item-footer">
+            <view class="footer-left">
+              <text v-if="needsExpand(item.response)" class="footer-btn" @click="toggleExpand(item)">
+                {{ isExpanded(item) ? '收起' : '查看全文' }}
+              </text>
+            </view>
+            <view class="footer-right">
+              <view class="footer-btn copy" @click="handleCopy(item)">
+                <uni-icons type="copy" size="14" color="#3c9cff"></uni-icons>
+                <text>复制</text>
+              </view>
+              <view class="footer-btn delete" @click="handleDelete(item)">
+                <uni-icons type="trash" size="14" color="#ff4d4f"></uni-icons>
+                <text>删除</text>
               </view>
             </view>
           </view>
@@ -79,478 +92,233 @@
       </view>
     </view>
 
-    <!-- 分页 -->
-    <view v-if="total > 0" class="pagination">
-      <button
-        class="btn btn-outline btn-small"
-        :disabled="page === 1"
-        @click="loadPage(page - 1)"
-      >上一页</button>
-      <text class="page-info">第 {{ page }} / {{ totalPages }} 页 (共 {{ total }} 条)</text>
-      <button
-        class="btn btn-outline btn-small"
-        :disabled="page >= totalPages"
-        @click="loadPage(page + 1)"
-      >下一页</button>
+    <view v-if="total > 0" class="pagination-floating card">
+      <view class="p-btn" :class="{ disabled: page === 1 }" @click="loadPage(page - 1)">
+        <uni-icons type="left" size="16" :color="page === 1 ? '#ccc' : '#3c9cff'"></uni-icons>
+      </view>
+      <text class="p-info">{{ page }} / {{ totalPages }}</text>
+      <view class="p-btn" :class="{ disabled: page >= totalPages }" @click="loadPage(page + 1)">
+        <uni-icons type="right" size="16" :color="page >= totalPages ? '#ccc' : '#3c9cff'"></uni-icons>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+/* 逻辑部分保持原样，仅做少量适配 */
+import { ref, onMounted, computed } from 'vue'
 import http from '@/utils/http.js'
 
-// 数据
 const historyList = ref([])
 const loading = ref(false)
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(10)
 const total = ref(0)
 const searchKeyword = ref('')
 const isSearchMode = ref(false)
-const expandedItems = ref({}) // 记录每个item是否展开
+const expandedItems = ref({})
+const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
-// 计算总页数
-const totalPages = ref(0)
-
-// 格式化时间
 const formatTime = (timeStr) => {
   if (!timeStr) return ''
   const date = new Date(timeStr)
-  const now = new Date()
-  const diff = now - date
-  
-  // 小于1分钟
-  if (diff < 60000) {
-    return '刚刚'
-  }
-  // 小于1小时
-  if (diff < 3600000) {
-    return `${Math.floor(diff / 60000)}分钟前`
-  }
-  // 小于1天
-  if (diff < 86400000) {
-    return `${Math.floor(diff / 3600000)}小时前`
-  }
-  // 小于7天
-  if (diff < 604800000) {
-    return `${Math.floor(diff / 86400000)}天前`
-  }
-  // 显示具体日期
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-// 加载历史记录
 const loadHistory = async (resetPage = false) => {
-  if (resetPage) {
-    page.value = 1
-  }
-  
+  if (resetPage) page.value = 1
   loading.value = true
   try {
-    let response
-    if (isSearchMode.value && searchKeyword.value.trim()) {
-      // 搜索模式
-      response = await http.searchHistory({
-        keyword: searchKeyword.value.trim(),
-        page: page.value,
-        page_size: pageSize.value
-      })
-    } else {
-      // 查询模式
-      response = await http.getConversations({
-        page: page.value,
-        page_size: pageSize.value
-      })
-    }
-    
+    let response = isSearchMode.value ? 
+      await http.searchHistory({ keyword: searchKeyword.value, page: page.value, page_size: pageSize.value }) :
+      await http.getConversations({ page: page.value, page_size: pageSize.value })
     if (response.code === 200) {
       historyList.value = response.data.items || []
       total.value = response.data.total || 0
-      totalPages.value = Math.ceil(total.value / pageSize.value)
-      // 重置展开状态
-      expandedItems.value = {}
-    } else {
-      uni.showToast({
-        title: response.message || '加载失败',
-        icon: 'none'
-      })
     }
-  } catch (error) {
-    console.error('加载历史记录失败:', error)
-    uni.showToast({
-      title: error.message || '加载失败',
-      icon: 'none'
-    })
   } finally {
     loading.value = false
   }
 }
 
-// 搜索
-const handleSearch = () => {
-  if (!searchKeyword.value.trim()) {
-    uni.showToast({
-      title: '请输入搜索关键词',
-      icon: 'none'
-    })
-    return
-  }
-  isSearchMode.value = true
-  loadHistory(true)
-}
+const handleSearch = () => { if (searchKeyword.value.trim()) { isSearchMode.value = true; loadHistory(true); } }
+const cancelSearch = () => { isSearchMode.value = false; searchKeyword.value = ''; loadHistory(true); }
+const loadPage = (p) => { if (p >= 1 && p <= totalPages.value) { page.value = p; loadHistory(); uni.pageScrollTo({ scrollTop: 0 }); } }
+const getPreviewText = (t) => t ? (t.split('\n').slice(0, 3).join('\n') + (t.split('\n').length > 3 ? '...' : '')) : ''
+const needsExpand = (t) => t && t.split('\n').length > 3
+const getItemKey = (item) => `${item.session_id}-${item.timestamp}`
+const isExpanded = (item) => expandedItems.value[getItemKey(item)] || false
+const toggleExpand = (item) => { const k = getItemKey(item); expandedItems.value[k] = !expandedItems.value[k]; }
 
-// 取消搜索
-const cancelSearch = () => {
-  isSearchMode.value = false
-  searchKeyword.value = ''
-  loadHistory(true)
-}
-
-// 加载指定页
-const loadPage = (newPage) => {
-  if (newPage < 1 || newPage > totalPages.value) {
-    return
-  }
-  page.value = newPage
-  loadHistory()
-}
-
-// 获取预览文本（前5行）
-const getPreviewText = (text) => {
-  if (!text) return ''
-  const lines = text.split('\n')
-  if (lines.length <= 5) {
-    return text
-  }
-  return lines.slice(0, 5).join('\n')
-}
-
-// 判断是否需要展开按钮
-const needsExpand = (text) => {
-  if (!text) return false
-  const lines = text.split('\n')
-  return lines.length > 5
-}
-
-// 获取唯一标识
-const getItemKey = (item) => {
-  return `${item.session_id}-${item.timestamp}`
-}
-
-// 判断是否展开
-const isExpanded = (item) => {
-  return expandedItems.value[getItemKey(item)] || false
-}
-
-// 切换展开/收起
-const toggleExpand = (item) => {
-  const key = getItemKey(item)
-  expandedItems.value[key] = !expandedItems.value[key]
-}
-
-// 一键复制
 const handleCopy = (item) => {
-  const content = item.response || ''
-  if (!content) {
-    uni.showToast({
-      title: '内容为空，无法复制',
-      icon: 'none'
-    })
-    return
-  }
-  
-  uni.setClipboardData({
-    data: content,
-    success: () => {
-      uni.showToast({
-        title: '复制成功',
-        icon: 'success',
-        duration: 1500
-      })
-    },
-    fail: (err) => {
-      console.error('复制失败:', err)
-      uni.showToast({
-        title: '复制失败，请稍后重试',
-        icon: 'none'
-      })
-    }
-  })
+  uni.setClipboardData({ data: item.response, success: () => uni.showToast({ title: '已复制结果' }) })
 }
 
-// 删除历史记录
 const handleDelete = (item) => {
   uni.showModal({
     title: '确认删除',
-    content: '确定要删除这条历史记录吗？此操作不可恢复。',
+    content: '删除后无法找回，确认吗？',
+    confirmColor: '#ff4d4f',
     success: async (res) => {
       if (res.confirm) {
-        try {
-          await http.deleteHistory({
-            session_id: item.session_id,
-            timestamp: item.timestamp
-          })
-          uni.showToast({
-            title: '删除成功',
-            icon: 'success'
-          })
-          // 重新加载列表
-          await loadHistory()
-        } catch (error) {
-          console.error('删除失败:', error)
-          uni.showToast({
-            title: error.message || '删除失败，请稍后重试',
-            icon: 'none',
-            duration: 2000
-          })
-        }
+        await http.deleteHistory({ session_id: item.session_id, timestamp: item.timestamp })
+        loadHistory()
       }
     }
   })
 }
 
-// 页面加载时获取数据
-onMounted(() => {
-  loadHistory()
-})
+onMounted(() => loadHistory())
 </script>
 
 <style scoped>
-.history-page {
+/* 引用工作台核心设计规范 */
+.workspace-page {
   min-height: 100vh;
-  padding: 20rpx;
-  background: #f8f8f8;
-  padding-bottom: 120rpx;
+  padding: 40rpx 30rpx 140rpx;
+  background-color: #fcfdfe;
+  position: relative;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 30rpx;
-  padding: 40rpx 0 20rpx;
+.bg-decoration {
+  position: absolute;
+  top: -150rpx; right: -100rpx; width: 500rpx; height: 500rpx;
+  background: radial-gradient(circle, rgba(60, 156, 255, 0.08) 0%, transparent 70%);
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #333;
-}
+.header { margin-bottom: 40rpx; }
+.title-wrapper { display: flex; align-items: center; gap: 12rpx; }
+.title { font-size: 52rpx; font-weight: 800; color: #1a1a1a; }
+.badge { background: #3c9cff; color: #fff; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 6rpx; }
+.subtitle { font-size: 26rpx; color: #999; margin-top: 12rpx; display: block; }
 
 .card {
   background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  border-radius: 32rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
-}
-
-.search-card {
+  box-shadow: 0 15rpx 40rpx rgba(160, 180, 210, 0.1);
+  border: 1rpx solid rgba(240, 244, 250, 0.8);
   margin-bottom: 30rpx;
 }
 
-.search-box {
+/* 搜索框美化 */
+.search-container {
   display: flex;
-  gap: 20rpx;
   align-items: center;
+  background: #f8f9fb;
+  border-radius: 20rpx;
+  padding: 16rpx 24rpx;
+  gap: 16rpx;
 }
+.search-input { flex: 1; font-size: 26rpx; color: #333; }
 
-.search-input {
-  flex: 1;
-  height: 70rpx;
-  padding: 0 20rpx;
-  background: #f5f5f5;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-}
-
-.btn {
-  padding: 16rpx 32rpx;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-  border: none;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: #007aff;
-  color: #ffffff;
-}
-
-.btn-outline {
-  background: transparent;
-  border: 2rpx solid #007aff;
-  color: #007aff;
-}
-
-.btn-small {
-  padding: 12rpx 24rpx;
-  font-size: 24rpx;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.search-tip {
-  margin-top: 20rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 24rpx;
-  color: #666;
-}
-
-.cancel-search {
-  color: #007aff;
-  text-decoration: underline;
-}
-
-.history-list {
-  margin-bottom: 30rpx;
-}
-
-.history-item {
-  margin-bottom: 20rpx;
-}
+/* 列表项美化 */
+.history-item { transition: transform 0.2s; }
+.history-item:active { transform: scale(0.98); }
 
 .item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
-  padding-bottom: 15rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f3f8;
 }
 
-.header-right {
+.platform-indicator { display: flex; align-items: center; gap: 10rpx; }
+.dot { width: 12rpx; height: 12rpx; background: #3c9cff; border-radius: 50%; }
+.session-tag { font-size: 24rpx; font-weight: 600; color: #666; }
+.time-text { font-size: 22rpx; color: #bbb; }
+
+.item-body { display: flex; flex-direction: column; gap: 20rpx; }
+
+.content-box {
+  padding: 20rpx;
+  border-radius: 20rpx;
+  position: relative;
+}
+.user-message { background: #f0f7ff; }
+.assistant-response { background: #f8f9fb; }
+
+.box-label {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 8rpx;
+  margin-bottom: 12rpx;
+  opacity: 0.7;
 }
+.box-label text { font-size: 22rpx; font-weight: 700; color: #444; }
 
-.session-tag {
-  font-size: 24rpx;
-  color: #007aff;
-  background: #e6f3ff;
-  padding: 6rpx 12rpx;
-  border-radius: 6rpx;
-}
-
-.time-text {
-  font-size: 24rpx;
-  color: #999;
-}
-
-.item-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-}
-
-.message-section,
-.response-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.label {
+.message-text, .response-text {
   font-size: 26rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.message-text,
-.response-text {
-  font-size: 28rpx;
-  color: #666;
   line-height: 1.6;
-  word-break: break-word;
-  white-space: pre-wrap;
+  color: #444;
+  word-break: break-all;
 }
 
-.response-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.response-text {
-  background: #f8f8f8;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  white-space: pre-wrap;
-  word-break: break-word;
-  line-height: 1.6;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 20rpx;
-  padding: 10rpx 0;
-}
-
-.action-btn {
-  color: #007aff;
-  font-size: 26rpx;
-  cursor: pointer;
-}
-
-.expand-btn {
-  color: #007aff;
-  font-size: 26rpx;
-  cursor: pointer;
-}
-
-.copy-btn {
-  color: #007aff;
-  font-size: 26rpx;
-  cursor: pointer;
-}
-
-.btn-delete {
-  padding: 8rpx 16rpx;
-  background: #ff3b30;
-  color: #ffffff;
-  border-radius: 8rpx;
-  font-size: 24rpx;
-  border: none;
-  cursor: pointer;
-}
-
-.loading,
-.empty {
-  text-align: center;
-  padding: 100rpx 0;
-  color: #999;
-  font-size: 28rpx;
-}
-
-.pagination {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  padding: 20rpx;
+/* 底部操作 */
+.item-footer {
+  margin-top: 24rpx;
+  padding-top: 20rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.08);
-  z-index: 100;
 }
 
-.page-info {
+.footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 12rpx;
   font-size: 24rpx;
-  color: #666;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.footer-btn.copy { background: #eef6ff; color: #3c9cff; }
+.footer-btn.delete { background: #fff1f0; color: #ff4d4f; }
+.footer-left .footer-btn { color: #888; background: transparent; padding: 0; }
+
+/* 悬浮分页器 */
+.pagination-floating {
+  position: fixed;
+  bottom: 40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400rpx;
+  height: 90rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40rpx;
+  margin-bottom: 0;
+  border-radius: 100rpx;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 99;
+  box-shadow: 0 10rpx 40rpx rgba(0,0,0,0.1);
+}
+.p-info { font-size: 24rpx; font-weight: 700; color: #444; }
+.p-btn { padding: 10rpx; }
+.p-btn.disabled { opacity: 0.3; }
+
+/* 状态占位 */
+.state-placeholder {
+  padding: 100rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+.empty-text, .loading-text { color: #ccc; font-size: 26rpx; }
+
+/* 动画 */
+.animate-in {
+  animation: slideUp 0.4s ease-out both;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30rpx); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

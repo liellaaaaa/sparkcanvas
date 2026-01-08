@@ -1,14 +1,25 @@
 <template>
-  <view class="rag-page">
+  <view class="workspace-page">
+    <view class="bg-decoration"></view>
+
     <view class="header">
-      <text class="title">📖 知识库</text>
+      <view class="title-wrapper">
+        <text class="title">知识库</text>
+        <view class="badge">RAG</view>
+      </view>
+      <text class="subtitle">上传文档，构建你的专属知识库</text>
     </view>
     
     <!-- 上传文档卡片 -->
     <view class="upload-card card">
+      <view class="card-title">
+        <uni-icons type="cloud-upload" size="20" color="#3c9cff"></uni-icons>
+        <text>上传文档</text>
+      </view>
       <view class="upload-section">
         <button class="btn btn-primary btn-upload" @click="handleChooseFile">
-          📤 上传文档
+          <uni-icons type="plusempty" size="18" color="#fff"></uni-icons>
+          <text>上传文档</text>
         </button>
         <text class="upload-tip">支持 PDF、Word、Txt 格式</text>
       </view>
@@ -19,24 +30,31 @@
 
     <!-- 语义检索卡片 -->
     <view class="search-card card">
-      <view class="search-box">
+      <view class="card-title">
+        <uni-icons type="search" size="20" color="#3c9cff"></uni-icons>
+        <text>语义检索</text>
+      </view>
+      <view class="search-container">
+        <uni-icons type="search" size="18" color="#999"></uni-icons>
         <input
           class="search-input"
           v-model="searchQuery"
           placeholder="输入关键词进行语义检索..."
+          placeholder-style="color:#bbb"
           @confirm="handleSearch"
         />
-        <button class="btn btn-primary btn-small" @click="handleSearch">🔍 搜索</button>
-      </view>
-      <view v-if="isSearchMode" class="search-tip">
-        <text>搜索关键词: {{ searchQuery }}</text>
-        <text class="cancel-search" @click="cancelSearch">取消搜索</text>
+        <view v-if="isSearchMode" class="clear-btn" @click="cancelSearch">
+          <uni-icons type="clear" size="18" color="#ff4d4f"></uni-icons>
+        </view>
       </view>
     </view>
 
     <!-- 搜索结果 -->
     <view v-if="isSearchMode && searchResults.length > 0" class="search-results">
-      <view class="section-title">🔍 搜索结果 ({{ searchResults.length }} 条)</view>
+      <view class="section-title">
+        <uni-icons type="list" size="18" color="#3c9cff"></uni-icons>
+        <text>搜索结果 ({{ searchResults.length }} 条)</text>
+      </view>
       <view
         v-for="(result, index) in searchResults"
         :key="index"
@@ -55,15 +73,17 @@
     <!-- 文档列表 -->
     <view v-if="!isSearchMode" class="documents-section">
       <view class="section-title">
-        📚 我的文档 (共 {{ total }} 个)
+        <uni-icons type="folder" size="18" color="#3c9cff"></uni-icons>
+        <text>我的文档 (共 {{ total }} 个)</text>
       </view>
       
-      <view v-if="loading" class="loading">
-        <text>加载中...</text>
+      <view v-if="loading" class="state-placeholder">
+        <text class="loading-text">正在加载文档...</text>
       </view>
       
-      <view v-else-if="documentList.length === 0" class="empty">
-        <text>暂无文档，请上传文档</text>
+      <view v-else-if="documentList.length === 0" class="state-placeholder">
+        <uni-icons type="info" size="40" color="#ddd"></uni-icons>
+        <text class="empty-text">暂无文档，请上传文档</text>
       </view>
       
       <view v-else>
@@ -79,30 +99,27 @@
                 {{ formatFileSize(doc.file_size) }} · {{ doc.chunks_count }} 块 · {{ formatTime(doc.uploaded_at) }}
               </text>
             </view>
-            <button 
-              class="btn-delete" 
+            <view 
+              class="footer-btn delete" 
               @click="handleDelete(doc.document_id, doc.file_name)"
             >
-              🗑️
-            </button>
+              <uni-icons type="trash" size="14" color="#ff4d4f"></uni-icons>
+              <text>删除</text>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 分页 -->
-    <view v-if="!isSearchMode && total > 0" class="pagination">
-      <button
-        class="btn btn-outline btn-small"
-        :disabled="page === 1"
-        @click="loadPage(page - 1)"
-      >上一页</button>
-      <text class="page-info">第 {{ page }} / {{ totalPages }} 页 (共 {{ total }} 个)</text>
-      <button
-        class="btn btn-outline btn-small"
-        :disabled="page >= totalPages"
-        @click="loadPage(page + 1)"
-      >下一页</button>
+    <view v-if="!isSearchMode && total > 0" class="pagination-floating card">
+      <view class="p-btn" :class="{ disabled: page === 1 }" @click="loadPage(page - 1)">
+        <uni-icons type="left" size="16" :color="page === 1 ? '#ccc' : '#3c9cff'"></uni-icons>
+      </view>
+      <text class="p-info">{{ page }} / {{ totalPages }}</text>
+      <view class="p-btn" :class="{ disabled: page >= totalPages }" @click="loadPage(page + 1)">
+        <uni-icons type="right" size="16" :color="page >= totalPages ? '#ccc' : '#3c9cff'"></uni-icons>
+      </view>
     </view>
   </view>
 </template>
@@ -374,31 +391,42 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.rag-page {
+.workspace-page {
   min-height: 100vh;
-  padding: 20rpx;
-  background: #f8f8f8;
-  padding-bottom: 120rpx;
+  padding: 40rpx 30rpx 140rpx;
+  background-color: #fcfdfe;
+  position: relative;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 30rpx;
-  padding: 40rpx 0 20rpx;
+.bg-decoration {
+  position: absolute;
+  top: -150rpx; right: -100rpx; width: 500rpx; height: 500rpx;
+  background: radial-gradient(circle, rgba(60, 156, 255, 0.08) 0%, transparent 70%);
 }
 
-.title {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #333;
-}
+.header { margin-bottom: 40rpx; }
+.title-wrapper { display: flex; align-items: center; gap: 12rpx; }
+.title { font-size: 52rpx; font-weight: 800; color: #1a1a1a; }
+.badge { background: #3c9cff; color: #fff; font-size: 18rpx; padding: 4rpx 10rpx; border-radius: 6rpx; }
+.subtitle { font-size: 26rpx; color: #999; margin-top: 12rpx; display: block; }
 
 .card {
   background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  border-radius: 32rpx;
   padding: 30rpx;
-  margin-bottom: 20rpx;
+  box-shadow: 0 15rpx 40rpx rgba(160, 180, 210, 0.1);
+  border: 1rpx solid rgba(240, 244, 250, 0.8);
+  margin-bottom: 30rpx;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 30rpx;
 }
 
 .upload-card {
@@ -417,34 +445,26 @@ onMounted(() => {
   border-radius: 12rpx;
   font-size: 28rpx;
   border: none;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
 }
 
 .btn-primary {
-  background: #007aff;
+  background: linear-gradient(135deg, #3c9cff 0%, #007aff 100%);
   color: #ffffff;
-}
-
-.btn-outline {
-  background: transparent;
-  border: 2rpx solid #007aff;
-  color: #007aff;
-}
-
-.btn-small {
-  padding: 12rpx 24rpx;
-  font-size: 24rpx;
 }
 
 .btn:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .btn-upload {
   width: 100%;
   padding: 24rpx;
-  font-size: 32rpx;
+  font-size: 30rpx;
+  font-weight: 600;
 }
 
 .upload-tip {
@@ -455,48 +475,39 @@ onMounted(() => {
 .upload-status {
   margin-top: 20rpx;
   text-align: center;
-  color: #007aff;
-  font-size: 28rpx;
+  color: #3c9cff;
+  font-size: 26rpx;
 }
 
-.search-card {
-  margin-bottom: 30rpx;
-}
-
-.search-box {
+.search-container {
   display: flex;
-  gap: 20rpx;
   align-items: center;
+  background: #f8f9fb;
+  border-radius: 20rpx;
+  padding: 16rpx 24rpx;
+  gap: 16rpx;
 }
 
 .search-input {
   flex: 1;
-  height: 70rpx;
-  padding: 0 20rpx;
-  background: #f5f5f5;
-  border-radius: 12rpx;
-  font-size: 28rpx;
+  font-size: 26rpx;
+  color: #333;
 }
 
-.search-tip {
-  margin-top: 20rpx;
+.clear-btn {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 24rpx;
-  color: #666;
-}
-
-.cancel-search {
-  color: #007aff;
-  text-decoration: underline;
+  justify-content: center;
 }
 
 .section-title {
-  font-size: 32rpx;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 30rpx;
+  font-weight: 700;
   color: #333;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
   padding: 0 10rpx;
 }
 
@@ -506,20 +517,25 @@ onMounted(() => {
 
 .search-result-item {
   margin-bottom: 20rpx;
+  transition: transform 0.2s;
+}
+
+.search-result-item:active {
+  transform: scale(0.98);
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15rpx;
-  padding-bottom: 15rpx;
-  border-bottom: 1rpx solid #eee;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f3f8;
 }
 
 .result-score {
   font-size: 24rpx;
-  color: #007aff;
+  color: #3c9cff;
   font-weight: 600;
 }
 
@@ -533,28 +549,36 @@ onMounted(() => {
 }
 
 .result-text {
-  font-size: 28rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: #444;
   line-height: 1.6;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  overflow: hidden;
+  word-break: break-all;
 }
 
 .documents-section {
   margin-bottom: 30rpx;
 }
 
-.loading, .empty {
-  text-align: center;
-  padding: 60rpx 0;
-  color: #999;
-  font-size: 28rpx;
+.state-placeholder {
+  padding: 100rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.empty-text, .loading-text {
+  color: #ccc;
+  font-size: 26rpx;
 }
 
 .document-item {
   margin-bottom: 20rpx;
+  transition: transform 0.2s;
+}
+
+.document-item:active {
+  transform: scale(0.98);
 }
 
 .doc-header {
@@ -571,7 +595,7 @@ onMounted(() => {
 }
 
 .doc-name {
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #333;
 }
@@ -581,26 +605,52 @@ onMounted(() => {
   color: #999;
 }
 
-.btn-delete {
+.footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   padding: 10rpx 20rpx;
-  background: transparent;
-  border: none;
-  font-size: 32rpx;
-  cursor: pointer;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
-.pagination {
+.footer-btn.delete {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
+.pagination-floating {
+  position: fixed;
+  bottom: 40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400rpx;
+  height: 90rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30rpx 20rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
+  padding: 0 40rpx;
+  margin-bottom: 0;
+  border-radius: 100rpx;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 99;
+  box-shadow: 0 10rpx 40rpx rgba(0,0,0,0.1);
 }
 
-.page-info {
+.p-info {
   font-size: 24rpx;
-  color: #666;
+  font-weight: 700;
+  color: #444;
+}
+
+.p-btn {
+  padding: 10rpx;
+}
+
+.p-btn.disabled {
+  opacity: 0.3;
 }
 </style>

@@ -102,13 +102,17 @@ class WorkspaceService:
 
             raise HTTPException(status_code=404, detail="会话不存在或已过期")
 
-        # 记录用户消息（同时保存素材源和平台信息，供重新生成时使用）
+        # 记录用户消息（同时保存素材源、平台和方向信息，供重新生成时使用）
         session_store.append_message(
             self.cfg, 
             payload.session_id, 
             "user", 
             payload.message,
-            metadata={"material_source": payload.material_source, "platform": payload.platform}
+            metadata={
+                "material_source": payload.material_source, 
+                "platform": payload.platform,
+                "direction": payload.direction
+            }
         )
 
         # 联网搜索：仅在素材源为 online 时执行
@@ -174,16 +178,19 @@ class WorkspaceService:
         last_user_msg = ""
         last_material_source = "online"  # 默认值
         last_platform = "xiaohongshu"  # 默认值
+        last_direction = None  # 默认值
         
         # 从会话历史中查找最近的用户消息和对应的素材源
         for msg in reversed(messages):
             if msg.get("role") == "user":
                 last_user_msg = msg.get("content", "")
-                # 尝试从消息元数据中获取素材源和平台（如果之前保存过）
+                # 尝试从消息元数据中获取素材源、平台和方向（如果之前保存过）
                 if "material_source" in msg:
                     last_material_source = msg.get("material_source", "online")
                 if "platform" in msg:
                     last_platform = msg.get("platform", "xiaohongshu")
+                if "direction" in msg:
+                    last_direction = msg.get("direction")
                 break
         
         dummy_request = WorkspaceSendMessageIn(
@@ -191,6 +198,7 @@ class WorkspaceService:
             message=last_user_msg,
             material_source=last_material_source,
             platform=last_platform,
+            direction=last_direction,
         )
         search_snippets = await self._maybe_online_search(dummy_request)
         rag_snippets = await self._maybe_rag_search(user_id, dummy_request)
@@ -251,6 +259,22 @@ class WorkspaceService:
 
         # 尝试从 prompts 目录加载带占位符的 system prompt，失败则回退到内置模板
         try:
+            # 获取方向信息，如果未提供则使用默认值
+            direction = payload.direction or "综合"
+            
+            # 根据方向优化提示词中的垂类描述
+            # 如果方向是常见分类，直接使用；否则使用"综合"作为默认值
+            direction_mapping = {
+                "美食": "美食",
+                "宠物": "宠物",
+                "影视剧": "影视娱乐",
+                "科普": "知识科普",
+                "旅行": "旅行",
+                "美妆": "美妆",
+                "穿搭": "时尚穿搭",
+            }
+            direction_label = direction_mapping.get(direction, direction or "综合")
+            
             variables = {
                 # TODO: 如需可从用户信息中注入真实昵称 / 品牌名等
                 "username": "",
@@ -258,6 +282,8 @@ class WorkspaceService:
                 "target_audience": "",
                 "video_topic": "",
                 "user_requirement": payload.message or "",
+                "垂类": direction_label,  # 方向信息传递给提示词的垂类占位符
+                "主题": payload.message or "",  # 主题使用用户需求
             }
             prompt_result = self.prompt_loader.load_prompt(
                 platform=prompt_platform,
@@ -272,12 +298,16 @@ class WorkspaceService:
             logger.warning(
                 f"[Workspace] Prompt 加载失败，使用内置 system_prompt: {e}",
             )
+            # 获取方向信息用于内置模板
+            direction = payload.direction or "综合"
+            direction_label = direction if direction else "综合"
+            
             system_prompt = (
-                f"你是一个专业的{platform_name}内容创作助手。\n"
+                f"你是一个专业的{platform_name}内容创作助手，专注于【{direction_label}】领域。\n"
                 f"请根据用户的需求，生成适合{platform_name}平台的爆款内容。\n"
                 "要求：\n"
-                f"1. 标题要吸引眼球，适合{platform_name}风格\n"
-                "2. 正文内容要有价值，排版清晰\n"
+                f"1. 标题要吸引眼球，适合{platform_name}风格，体现{direction_label}领域特色\n"
+                "2. 正文内容要有价值，排版清晰，符合该领域的专业性和用户习惯\n"
                 "3. 使用适当的emoji增加可读性\n"
                 "4. 输出格式：第一行是标题，空一行后是正文内容"
             )
